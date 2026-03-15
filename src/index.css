@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-black: #0a0a0a;
+  --color-brand-grey: #1a1a1a;
+  --color-neon-blue: #00f2ff;
+  --color-neon-purple: #bc13fe;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-black text-white selection:bg-neon-blue/30;
+    background: radial-gradient(circle at top right, #1a1a1a, #0a0a0a);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl;
+  }
+  
+  .neon-glow {
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.3);
+  }
+  
+  .neon-text {
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
+  }
+
+  @keyframes border-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .animated-border-container {
+    @apply relative overflow-hidden rounded-xl p-[1px];
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .animated-border-container::before {
+    content: '';
+    @apply absolute top-[-50%] left-[-50%] w-[200%] h-[200%];
+    background: conic-gradient(
+      transparent, 
+      transparent, 
+      transparent, 
+      var(--color-neon-blue)
+    );
+    animation: border-rotate 4s linear infinite;
+  }
+
+  .animated-border-content {
+    @apply relative bg-brand-black rounded-[11px] w-full h-full flex items-center justify-center;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  }
+}
