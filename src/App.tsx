@@ -19,15 +19,71 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
+  const [showManualConfig, setShowManualConfig] = useState(false);
+  const [manualUrl, setManualUrl] = useState('');
+  const [manualKey, setManualKey] = useState('');
+
   // Check Supabase connection on start
   useEffect(() => {
     const checkConnection = async () => {
-      if (!import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
-        setConnectionError("Supabase URL is missing. Please set VITE_SUPABASE_URL in Vercel Environment Variables.");
+      let url = import.meta.env.VITE_SUPABASE_URL;
+      let key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      // Check localStorage for manual override
+      const storedUrl = localStorage.getItem('manual_supabase_url');
+      const storedKey = localStorage.getItem('manual_supabase_key');
+      
+      if (storedUrl && storedKey) {
+        url = storedUrl;
+        key = storedKey;
+      }
+
+      if (!url || url.includes('placeholder') || !key || key.includes('placeholder')) {
+        setConnectionError("Supabase configuration is missing. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the Settings -> Environment Variables menu.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Simple ping test
+        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true }).limit(1);
+        if (error) {
+          console.error('Supabase connection test failed:', error);
+          if (error.message.includes('FetchError') || error.message.includes('Failed to fetch')) {
+            setConnectionError(`Could not connect to Supabase. Error: ${error.message}`);
+          } else if (error.code === '42P01') {
+            // Table doesn't exist, but connection is OK
+            console.log('Connection OK, but users table missing.');
+          } else {
+            console.log('Connection test returned an error:', error.message);
+          }
+        }
+      } catch (err) {
+        console.error('Connection test exception:', err);
+        setConnectionError("An unexpected error occurred while connecting to Supabase.");
+      } finally {
+        const savedUser = localStorage.getItem('hsc_2026_current_user');
+        if (!savedUser) {
+          setIsLoading(false);
+        }
       }
     };
     checkConnection();
   }, []);
+
+  const handleSaveManualConfig = () => {
+    if (manualUrl && manualKey) {
+      localStorage.setItem('manual_supabase_url', manualUrl);
+      localStorage.setItem('manual_supabase_key', manualKey);
+      window.location.reload();
+    }
+  };
+
+  const handleClearManualConfig = () => {
+    localStorage.removeItem('manual_supabase_url');
+    localStorage.removeItem('manual_supabase_key');
+    window.location.reload();
+  };
 
   // Load data on start
   useEffect(() => {
@@ -312,10 +368,87 @@ export default function App() {
           {connectionError}
         </p>
         <div className="glass-card p-4 text-left text-xs font-mono text-red-400 space-y-2">
-          <p>1. Go to Vercel Dashboard</p>
-          <p>2. Settings {"->"} Environment Variables</p>
+          <p>1. Open the Settings menu (gear icon)</p>
+          <p>2. Go to Environment Variables</p>
           <p>3. Add VITE_SUPABASE_URL {"&"} VITE_SUPABASE_ANON_KEY</p>
-          <p>4. Redeploy your app</p>
+          <p>4. Refresh the page or click below</p>
+        </div>
+
+        <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10 text-left w-full max-w-md">
+          <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-2">Debug Info</p>
+          <div className="space-y-1 font-mono text-[10px]">
+            <p className="text-white/40">URL Detected: <span className={import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "text-green-400" : "text-red-400"}>
+              {import.meta.env.VITE_SUPABASE_URL ? (import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "Placeholder" : "Detected") : "Missing"}
+            </span></p>
+            <p className="text-white/40">Key Detected: <span className={import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "text-green-400" : "text-red-400"}>
+              {import.meta.env.VITE_SUPABASE_ANON_KEY ? (import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "Placeholder" : "Detected") : "Missing"}
+            </span></p>
+            {localStorage.getItem('manual_supabase_url') && (
+              <p className="text-neon-blue mt-2">Manual Override Active</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 mt-8 w-full max-w-md">
+          <FuturisticButton 
+            onClick={() => window.location.reload()}
+            variant="outline"
+            showAnimatedBorder
+          >
+            Retry Connection
+          </FuturisticButton>
+
+          <button 
+            onClick={() => setShowManualConfig(!showManualConfig)}
+            className="text-white/40 text-xs hover:text-white/60 transition-colors"
+          >
+            {showManualConfig ? "Hide Manual Config" : "Try Manual Configuration"}
+          </button>
+
+          {showManualConfig && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card p-6 space-y-4 mt-2"
+            >
+              <div className="space-y-2">
+                <label className="text-[10px] text-white/40 uppercase tracking-wider">Supabase URL</label>
+                <input 
+                  type="text"
+                  value={manualUrl}
+                  onChange={(e) => setManualUrl(e.target.value)}
+                  placeholder="https://your-project.supabase.co"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-neon-blue/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] text-white/40 uppercase tracking-wider">Anon Key</label>
+                <input 
+                  type="text"
+                  value={manualKey}
+                  onChange={(e) => setManualKey(e.target.value)}
+                  placeholder="your-anon-key"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-neon-blue/50"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <FuturisticButton 
+                  onClick={handleSaveManualConfig}
+                  className="flex-1 py-2 text-xs"
+                >
+                  Save & Connect
+                </FuturisticButton>
+                {localStorage.getItem('manual_supabase_url') && (
+                  <button 
+                    onClick={handleClearManualConfig}
+                    className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-xs hover:bg-red-500/30 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     );

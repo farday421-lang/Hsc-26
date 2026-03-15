@@ -1,9 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+const getSupabaseConfig = () => {
+  const storedUrl = typeof window !== 'undefined' ? localStorage.getItem('manual_supabase_url') : null;
+  const storedKey = typeof window !== 'undefined' ? localStorage.getItem('manual_supabase_key') : null;
 
-if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  const url = storedUrl || import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+  const key = storedKey || import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+
+  return { url, key };
+};
+
+const { url: supabaseUrl, key: supabaseKey } = getSupabaseConfig();
+
+if ((!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) && 
+    (typeof window !== 'undefined' && !localStorage.getItem('manual_supabase_url'))) {
   console.warn('Supabase URL or Key is missing. Please check your environment variables.');
 }
 
