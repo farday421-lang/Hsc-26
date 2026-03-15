@@ -29,6 +29,15 @@ export default function App() {
     }
   }, []);
 
+  // Persist data to localStorage
+  useEffect(() => {
+    if (userData && currentUser) {
+      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+      allData[currentUser] = userData;
+      localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(allData));
+    }
+  }, [userData, currentUser]);
+
   const loadUserData = async (username: string) => {
     setIsLoading(true);
     try {
@@ -86,7 +95,17 @@ export default function App() {
       console.error('Error loading user data:', error);
       // Fallback to local storage if Supabase fails
       const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-      if (allData[username]) setUserData(allData[username]);
+      if (allData[username]) {
+        setUserData(allData[username]);
+      } else {
+        // Initialize new user data if nothing exists
+        setUserData({
+          username,
+          totalStudyHours: 0,
+          lastActiveDate: new Date().toISOString(),
+          classes: []
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +119,14 @@ export default function App() {
         .eq('username', username)
         .single();
 
-      if (error || !data) {
+      if (error) {
+        if (error.code === 'PGRST116') {
+          alert("Account not found. Please create an account first.");
+          return false;
+        }
+        // If it's a connection error, we'll try to proceed to loadUserData which has its own fallback
+        console.warn("Supabase connection error during login, attempting local fallback");
+      } else if (!data) {
         alert("Account not found. Please create an account first.");
         return false;
       }
@@ -111,6 +137,14 @@ export default function App() {
       return true;
     } catch (err) {
       console.error("Login error:", err);
+      // Fallback: if we have local data, allow login
+      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+      if (allData[username]) {
+        setCurrentUser(username);
+        localStorage.setItem('hsc_2026_current_user', username);
+        await loadUserData(username);
+        return true;
+      }
       alert("An error occurred during login.");
       return false;
     }
@@ -130,15 +164,13 @@ export default function App() {
         return false;
       }
 
-      // Create new user
+      // Create new user in Supabase
       const { error } = await supabase
         .from('users')
         .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }]);
 
       if (error) {
-        console.error("Error creating account:", error);
-        alert("Failed to create account. Please try again.");
-        return false;
+        console.warn("Error creating account in Supabase, will proceed with local account:", error);
       }
 
       setCurrentUser(username);
@@ -147,8 +179,11 @@ export default function App() {
       return true;
     } catch (err) {
       console.error("Create account error:", err);
-      alert("An error occurred while creating the account.");
-      return false;
+      // Proceed with local account creation
+      setCurrentUser(username);
+      localStorage.setItem('hsc_2026_current_user', username);
+      await loadUserData(username);
+      return true;
     }
   };
 
