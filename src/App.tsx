@@ -49,18 +49,16 @@ export default function App() {
         const { error } = await supabase.from('users').select('count', { count: 'exact', head: true }).limit(1);
         if (error) {
           console.error('Supabase connection test failed:', error);
-          if (error.message.includes('FetchError') || error.message.includes('Failed to fetch')) {
-            setConnectionError(`Could not connect to Supabase. Error: ${error.message}`);
-          } else if (error.code === '42P01') {
+          if (error.code === '42P01') {
             // Table doesn't exist, but connection is OK
             console.log('Connection OK, but users table missing.');
           } else {
-            console.log('Connection test returned an error:', error.message);
+            setConnectionError(`Supabase Error: ${error.message} (Code: ${error.code || 'N/A'})`);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Connection test exception:', err);
-        setConnectionError("An unexpected error occurred while connecting to Supabase.");
+        setConnectionError(`Connection failed: ${err.message || 'Unknown network error'}`);
       } finally {
         const savedUser = localStorage.getItem('hsc_2026_current_user');
         if (!savedUser) {
@@ -73,8 +71,8 @@ export default function App() {
 
   const handleSaveManualConfig = () => {
     if (manualUrl && manualKey) {
-      localStorage.setItem('manual_supabase_url', manualUrl);
-      localStorage.setItem('manual_supabase_key', manualKey);
+      localStorage.setItem('manual_supabase_url', manualUrl.trim());
+      localStorage.setItem('manual_supabase_key', manualKey.trim());
       window.location.reload();
     }
   };
@@ -107,8 +105,10 @@ export default function App() {
 
   const loadUserData = async (username: string, isNewUser: boolean = false) => {
     setIsLoading(true);
+    console.log('Loading user data for:', username, 'isNewUser:', isNewUser);
     try {
       // Fetch user
+      console.log('Fetching user from Supabase...');
       let { data: user, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -116,33 +116,48 @@ export default function App() {
         .single();
 
       if (userError && userError.code === 'PGRST116') {
+        console.log('User not found in Supabase.');
         if (isNewUser) {
           // User doesn't exist, create one
+          console.log('Creating new user in Supabase...');
           const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }])
             .select()
             .single();
           
-          if (createError) throw createError;
+          if (createError) {
+            console.error('Error creating new user:', createError);
+            throw createError;
+          }
           user = newUser;
         } else {
           // If user not found and not creating new, clear session
+          console.log('User not found and not new, logging out.');
           handleLogout();
           return;
         }
       } else if (userError) {
+        console.error('Error fetching user:', userError);
         throw userError;
       }
 
+      console.log('User fetched successfully:', user);
+
       // Fetch classes
+      console.log('Fetching classes from Supabase...');
       const { data: classes, error: classesError } = await supabase
         .from('classes')
         .select('*')
         .eq('username', username)
         .order('date_added', { ascending: false });
 
-      if (classesError) throw classesError;
+      if (classesError) {
+        console.error('Error fetching classes:', classesError);
+        throw classesError;
+      }
+
+      console.log('Classes fetched successfully:', classes?.length || 0, 'classes found');
 
       // Map snake_case to camelCase
       const formattedClasses: ClassItem[] = (classes || []).map(c => ({
@@ -186,6 +201,7 @@ export default function App() {
 
   const handleLogin = async (username: string): Promise<boolean> => {
     try {
+      console.log('Attempting login for:', username);
       const { data, error } = await supabase
         .from('users')
         .select('username')
@@ -193,26 +209,34 @@ export default function App() {
         .single();
 
       if (error) {
+        console.error('Supabase login error:', error);
         if (error.code === 'PGRST116') {
-          alert("Account not found. Please create an account first.");
+          alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
           return false;
         }
-        throw error;
+        if (error.message.includes('Failed to fetch')) {
+          alert("Connection error: Could not reach Supabase. Check your URL and internet.");
+          return false;
+        }
+        alert(`Login failed: ${error.message}`);
+        return false;
       }
 
+      console.log('Login successful for:', username);
       setCurrentUser(username);
       localStorage.setItem('hsc_2026_current_user', username);
       await loadUserData(username);
       return true;
-    } catch (err) {
-      console.error("Login error:", err);
-      alert("Login failed. Please check your internet connection or Supabase settings.");
+    } catch (err: any) {
+      console.error("Login exception:", err);
+      alert(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
       return false;
     }
   };
 
   const handleCreateAccount = async (username: string): Promise<boolean> => {
     try {
+      console.log('Attempting to create account for:', username);
       const { data: existingUser } = await supabase
         .from('users')
         .select('username')
@@ -220,7 +244,7 @@ export default function App() {
         .single();
 
       if (existingUser) {
-        alert("Username already exists. Please login instead.");
+        alert(`Username "${username}" already exists. Please login instead.`);
         return false;
       }
 
@@ -228,15 +252,20 @@ export default function App() {
         .from('users')
         .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase create account error:', error);
+        alert(`Account creation failed: ${error.message}`);
+        return false;
+      }
 
+      console.log('Account created successfully for:', username);
       setCurrentUser(username);
       localStorage.setItem('hsc_2026_current_user', username);
       await loadUserData(username, true);
       return true;
-    } catch (err) {
-      console.error("Create account error:", err);
-      alert("Failed to create account. Make sure Supabase is connected.");
+    } catch (err: any) {
+      console.error("Create account exception:", err);
+      alert(`Failed to create account: ${err.message || 'Unknown error'}`);
       return false;
     }
   };
@@ -377,11 +406,15 @@ export default function App() {
         <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10 text-left w-full max-w-md">
           <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-2">Debug Info</p>
           <div className="space-y-1 font-mono text-[10px]">
-            <p className="text-white/40">URL Detected: <span className={import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "text-green-400" : "text-red-400"}>
-              {import.meta.env.VITE_SUPABASE_URL ? (import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "Placeholder" : "Detected") : "Missing"}
+            <p className="text-white/40">URL: <span className={import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "text-green-400" : "text-red-400"}>
+              {localStorage.getItem('manual_supabase_url') ? 
+                `${localStorage.getItem('manual_supabase_url')?.substring(0, 15)}...` : 
+                (import.meta.env.VITE_SUPABASE_URL ? (import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "Placeholder" : "Detected") : "Missing")}
             </span></p>
-            <p className="text-white/40">Key Detected: <span className={import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "text-green-400" : "text-red-400"}>
-              {import.meta.env.VITE_SUPABASE_ANON_KEY ? (import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "Placeholder" : "Detected") : "Missing"}
+            <p className="text-white/40">Key: <span className={import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "text-green-400" : "text-red-400"}>
+              {localStorage.getItem('manual_supabase_key') ? 
+                `${localStorage.getItem('manual_supabase_key')?.substring(0, 10)}...` : 
+                (import.meta.env.VITE_SUPABASE_ANON_KEY ? (import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "Placeholder" : "Detected") : "Missing")}
             </span></p>
             {localStorage.getItem('manual_supabase_url') && (
               <p className="text-neon-blue mt-2">Manual Override Active</p>
