@@ -46,8 +46,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
   const unfinishedClasses = userData.classes.filter(c => c.progress === 'Half Completed');
 
   const handleSubjectChange = (subject: Subject | 'All') => {
+    console.log('Subject clicked:', subject);
     if (selectedSubject !== subject) {
-      playSlideSound();
+      try {
+        playSlideSound();
+      } catch (e) {
+        console.warn('Sound failed', e);
+      }
       setSelectedSubject(subject);
     }
   };
@@ -137,7 +142,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
               <p className="text-xs text-white/60">You have {unfinishedClasses.length} unfinished classes. Keep going!</p>
             </div>
             <FuturisticButton 
-              onClick={onAddClass}
+              onClick={() => {
+                console.log('Add Class button clicked (reminder)');
+                onAddClass();
+              }}
               showAnimatedBorder
               className="px-4 py-2"
             >
@@ -161,14 +169,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
             />
           </div>
           <FuturisticButton 
-            onClick={onAddClass}
+            onClick={() => {
+              console.log('Add Class button clicked (top)');
+              onAddClass();
+            }}
             className="p-3 aspect-square"
           >
             <Plus className="w-6 h-6" />
           </FuturisticButton>
         </div>
 
-        <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-4 md:pb-0 custom-scrollbar scroll-smooth">
+        <div className="flex items-center gap-4 w-full md:w-auto overflow-x-auto pb-4 md:pb-0 custom-scrollbar scroll-smooth relative z-10">
           <motion.div 
             className="flex items-center gap-3 px-2"
             layout
@@ -176,7 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
             <button
               onClick={() => handleSubjectChange('All')}
               className={cn(
-                "relative h-12 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group perspective-1000",
+                "relative h-12 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group",
                 selectedSubject === 'All' 
                   ? "text-brand-black" 
                   : "text-white/40 hover:text-white"
@@ -202,9 +213,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
-                {selectedSubject === 'All' && (
-                  <div className="absolute inset-0 animated-border-container opacity-50 pointer-events-none" />
-                )}
                 <span className="relative z-10">All Subjects</span>
               </div>
             </button>
@@ -214,7 +222,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
                 key={s}
                 onClick={() => handleSubjectChange(s)}
                 className={cn(
-                  "relative h-12 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group perspective-1000",
+                  "relative h-12 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group",
                   selectedSubject === s 
                     ? "text-brand-black" 
                     : "text-white/40 hover:text-white"
@@ -239,9 +247,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
                       className="absolute inset-0 bg-neon-blue"
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                     />
-                  )}
-                  {selectedSubject === s && (
-                    <div className="absolute inset-0 animated-border-container opacity-50 pointer-events-none" />
                   )}
                   <span className="relative z-10">{s}</span>
                 </div>
@@ -277,7 +282,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
           <div className="flex justify-center">
             <FuturisticButton 
               variant="outline"
-              onClick={onAddClass}
+              onClick={() => {
+                console.log('Add Class button clicked (empty state)');
+                onAddClass();
+              }}
               showAnimatedBorder
             >
               Add Your First Class

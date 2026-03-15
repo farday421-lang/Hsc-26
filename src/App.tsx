@@ -210,7 +210,8 @@ export default function App() {
 
     setIsSaving(true);
     try {
-      await supabase.from('classes').insert([{
+      console.log('Adding class to Supabase:', newClass);
+      const { error } = await supabase.from('classes').insert([{
         id: newClass.id,
         username: currentUser,
         title: newClass.title,
@@ -221,8 +222,16 @@ export default function App() {
         progress: newClass.progress,
         is_bookmarked: newClass.isBookmarked
       }]);
-    } catch (error) {
+      
+      if (error) {
+        console.error('Supabase insert error:', error);
+        alert(`Error: ${error.message}`);
+      } else {
+        console.log('Class added successfully');
+      }
+    } catch (error: any) {
       console.error('Error adding class:', error);
+      alert(`Failed to add class: ${error.message || 'Unknown error'}`);
     } finally {
       setTimeout(() => setIsSaving(false), 1000);
     }

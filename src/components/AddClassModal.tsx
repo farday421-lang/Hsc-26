@@ -73,16 +73,25 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !youtubeUrl) return;
+    console.log('Form submitted:', { title, youtubeUrl, uploadMode, file });
+    if (!title || !youtubeUrl) {
+      console.warn('Missing required fields');
+      return;
+    }
     
     let finalPdfUrl = pdfUrl;
 
     if (uploadMode === 'file' && file) {
+      console.log('Uploading file...');
       const uploadedUrl = await uploadFileToSupabase(file);
-      if (!uploadedUrl) return; // Stop if upload failed
+      if (!uploadedUrl) {
+        console.error('File upload failed');
+        return; // Stop if upload failed
+      }
       finalPdfUrl = uploadedUrl;
     }
 
+    console.log('Calling onAdd with:', { title, subject, youtubeUrl, pdfUrl: finalPdfUrl });
     onAdd({ title, subject, youtubeUrl, pdfUrl: finalPdfUrl || undefined });
     
     // Reset state
