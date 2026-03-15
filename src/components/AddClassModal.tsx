@@ -62,7 +62,9 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
       return publicUrlData.publicUrl;
     } catch (error: any) {
       console.error('Upload error:', error);
-      setUploadError(error.message || 'Failed to upload file. Make sure you created a public bucket named "study-materials" in Supabase.');
+      const msg = error.message || 'Failed to upload file. Make sure you created a public bucket named "study-materials" in Supabase.';
+      setUploadError(msg);
+      alert(msg);
       return null;
     } finally {
       setIsUploading(false);

@@ -17,6 +17,17 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'search' | 'bookmarks'>('dashboard');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // Check Supabase connection on start
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (!import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL.includes('placeholder')) {
+        setConnectionError("Supabase URL is missing. Please set VITE_SUPABASE_URL in Vercel Environment Variables.");
+      }
+    };
+    checkConnection();
+  }, []);
 
   // Load data on start
   useEffect(() => {
@@ -38,7 +49,7 @@ export default function App() {
     }
   }, [userData, currentUser]);
 
-  const loadUserData = async (username: string) => {
+  const loadUserData = async (username: string, isNewUser: boolean = false) => {
     setIsLoading(true);
     try {
       // Fetch user
@@ -49,15 +60,21 @@ export default function App() {
         .single();
 
       if (userError && userError.code === 'PGRST116') {
-        // User doesn't exist, create one
-        const { data: newUser, error: createError } = await supabase
-          .from('users')
-          .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }])
-          .select()
-          .single();
-        
-        if (createError) throw createError;
-        user = newUser;
+        if (isNewUser) {
+          // User doesn't exist, create one
+          const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }])
+            .select()
+            .single();
+          
+          if (createError) throw createError;
+          user = newUser;
+        } else {
+          // If user not found and not creating new, clear session
+          handleLogout();
+          return;
+        }
       } else if (userError) {
         throw userError;
       }
@@ -124,11 +141,7 @@ export default function App() {
           alert("Account not found. Please create an account first.");
           return false;
         }
-        // If it's a connection error, we'll try to proceed to loadUserData which has its own fallback
-        console.warn("Supabase connection error during login, attempting local fallback");
-      } else if (!data) {
-        alert("Account not found. Please create an account first.");
-        return false;
+        throw error;
       }
 
       setCurrentUser(username);
@@ -137,22 +150,13 @@ export default function App() {
       return true;
     } catch (err) {
       console.error("Login error:", err);
-      // Fallback: if we have local data, allow login
-      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-      if (allData[username]) {
-        setCurrentUser(username);
-        localStorage.setItem('hsc_2026_current_user', username);
-        await loadUserData(username);
-        return true;
-      }
-      alert("An error occurred during login.");
+      alert("Login failed. Please check your internet connection or Supabase settings.");
       return false;
     }
   };
 
   const handleCreateAccount = async (username: string): Promise<boolean> => {
     try {
-      // Check if user already exists
       const { data: existingUser } = await supabase
         .from('users')
         .select('username')
@@ -164,26 +168,20 @@ export default function App() {
         return false;
       }
 
-      // Create new user in Supabase
       const { error } = await supabase
         .from('users')
         .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }]);
 
-      if (error) {
-        console.warn("Error creating account in Supabase, will proceed with local account:", error);
-      }
+      if (error) throw error;
 
       setCurrentUser(username);
       localStorage.setItem('hsc_2026_current_user', username);
-      await loadUserData(username);
+      await loadUserData(username, true);
       return true;
     } catch (err) {
       console.error("Create account error:", err);
-      // Proceed with local account creation
-      setCurrentUser(username);
-      localStorage.setItem('hsc_2026_current_user', username);
-      await loadUserData(username);
-      return true;
+      alert("Failed to create account. Make sure Supabase is connected.");
+      return false;
     }
   };
 
@@ -294,6 +292,26 @@ export default function App() {
     };
   }, [userData]);
 
+  if (connectionError) {
+    return (
+      <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
+          <Cloud className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Configuration Missing</h2>
+        <p className="text-white/60 max-w-md mb-8">
+          {connectionError}
+        </p>
+        <div className="glass-card p-4 text-left text-xs font-mono text-red-400 space-y-2">
+          <p>1. Go to Vercel Dashboard</p>
+          <p>2. Settings {"->"} Environment Variables</p>
+          <p>3. Add VITE_SUPABASE_URL {"&"} VITE_SUPABASE_ANON_KEY</p>
+          <p>4. Redeploy your app</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center">
@@ -312,6 +330,7 @@ export default function App() {
       <DynamicIsland 
         stats={stats} 
         onNavigate={(view) => setCurrentView(view)} 
+        onLogout={handleLogout}
       />
 
       <main className="max-w-7xl mx-auto px-6 pt-32 pb-40">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clock, Calendar, BookOpen, CheckCircle, ChevronDown, LayoutDashboard, Search, Bookmark } from 'lucide-react';
+import { Clock, Calendar, BookOpen, CheckCircle, ChevronDown, LayoutDashboard, Search, Bookmark, LogOut } from 'lucide-react';
 import { format } from 'date-fns';
 import { FuturisticButton } from './FuturisticButton';
 import { cn } from '../lib/utils';
@@ -13,9 +13,10 @@ interface DynamicIslandProps {
     completedPercentage: number;
   };
   onNavigate: (view: 'dashboard' | 'search' | 'bookmarks') => void;
+  onLogout: () => void;
 }
 
-export const DynamicIsland: React.FC<DynamicIslandProps> = ({ stats, onNavigate }) => {
+export const DynamicIsland: React.FC<DynamicIslandProps> = ({ stats, onNavigate, onLogout }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -177,6 +178,13 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({ stats, onNavigate 
                 >
                   <Bookmark className="w-4 h-4" />
                   <span className="text-xs font-semibold uppercase tracking-wider">Saved</span>
+                </FuturisticButton>
+                <FuturisticButton 
+                  variant="secondary"
+                  onClick={(e) => { e.stopPropagation(); onLogout(); }}
+                  className="flex-none p-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border-red-500/20"
+                >
+                  <LogOut className="w-4 h-4" />
                 </FuturisticButton>
               </div>
             </motion.div>
