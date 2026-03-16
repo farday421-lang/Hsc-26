@@ -330,7 +330,7 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount, o
 
         {/* Toggle Mode */}
         {!isRecovering && (
-          <div className="mt-6 pt-4 border-t border-white/5 text-center">
+          <div className="mt-6 pt-4 border-t border-white/5 text-center flex flex-col gap-3">
             <button
               type="button"
               onClick={() => {

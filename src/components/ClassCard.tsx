@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import YouTube, { YouTubeProps } from 'react-youtube';
+import ReactPlayer from 'react-player';
 import { FileText, CheckCircle2, Circle, Clock, Bookmark, BookmarkCheck, Trash2, ExternalLink, Sigma } from 'lucide-react';
 import { ClassItem, ProgressState } from '../types';
 import { FuturisticButton } from './FuturisticButton';
@@ -18,54 +18,28 @@ interface ClassCardProps {
 
 export const ClassCard: React.FC<ClassCardProps> = ({ item, onUpdateProgress, onToggleBookmark, onDelete, onUpdatePosition }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [player, setPlayer] = useState<any>(null);
   const [isFormulaModalOpen, setIsFormulaModalOpen] = useState(false);
+  const playerRef = useRef<ReactPlayer>(null);
 
-  // Extract video ID from YouTube URL
-  const getYouTubeId = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
-  const videoId = getYouTubeId(item.youtubeUrl);
-
-  const onPlayerReady: YouTubeProps['onReady'] = (event) => {
-    setPlayer(event.target);
-    if (item.lastPosition) {
-      event.target.seekTo(item.lastPosition, true);
+  const handleReady = () => {
+    if (item.lastPosition && playerRef.current) {
+      playerRef.current.seekTo(item.lastPosition, 'seconds');
     }
   };
 
-  const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
-    // 1 = playing, 2 = paused, 0 = ended
-    if (event.data === 1) {
-      if (item.progress === 'Not Started') {
-        onUpdateProgress(item.id, 'Half Completed');
-      }
-      // Start interval to save position while playing
-      const interval = setInterval(() => {
-        if (event.target && event.target.getCurrentTime) {
-          onUpdatePosition(item.id, event.target.getCurrentTime());
-        }
-      }, 5000);
-      
-      // Store interval on player object to clear it later
-      (event.target as any)._posInterval = interval;
-    } else {
-      // Clear interval when not playing
-      if ((event.target as any)._posInterval) {
-        clearInterval((event.target as any)._posInterval);
-      }
-      
-      if (event.data === 0) {
-        onUpdateProgress(item.id, 'Completed');
-        onUpdatePosition(item.id, 0);
-      } else if (event.data === 2) {
-        // Paused
-        onUpdatePosition(item.id, event.target.getCurrentTime());
-      }
+  const handlePlay = () => {
+    if (item.progress === 'Not Started') {
+      onUpdateProgress(item.id, 'Half Completed');
     }
+  };
+
+  const handleProgress = (state: { playedSeconds: number }) => {
+    onUpdatePosition(item.id, state.playedSeconds);
+  };
+
+  const handleEnded = () => {
+    onUpdateProgress(item.id, 'Completed');
+    onUpdatePosition(item.id, 0);
   };
 
   const progressPercentage = item.progress === 'Completed' ? 100 : item.progress === 'Half Completed' ? 50 : 0;
@@ -82,30 +56,28 @@ export const ClassCard: React.FC<ClassCardProps> = ({ item, onUpdateProgress, on
     >
       {/* Video Player Section */}
       <div className="aspect-video w-full bg-brand-black relative overflow-hidden">
-        {videoId ? (
-          <YouTube
-            videoId={videoId}
-            opts={{
-              width: '100%',
-              height: '100%',
-              playerVars: {
-                autoplay: 0,
-                modestbranding: 1,
-                rel: 0,
-              },
-            }}
+        {item.youtubeUrl ? (
+          <ReactPlayer
+            ref={playerRef}
+            url={item.youtubeUrl}
+            width="100%"
+            height="100%"
+            controls={true}
+            onReady={handleReady}
+            onPlay={handlePlay}
+            onProgress={handleProgress}
+            onEnded={handleEnded}
+            progressInterval={5000}
             className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
-            onReady={onPlayerReady}
-            onStateChange={onPlayerStateChange}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-white/20 bg-white/5">
-            Invalid YouTube URL
+            Invalid Video URL
           </div>
         )}
         
         {/* Progress Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/10 backdrop-blur-sm">
+        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/10 backdrop-blur-sm pointer-events-none">
           <motion.div 
             initial={{ width: 0 }}
             animate={{ width: `${progressPercentage}%` }}

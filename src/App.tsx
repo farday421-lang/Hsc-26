@@ -657,7 +657,13 @@ export default function App() {
   }
 
   if (!currentUser || !userData) {
-    return <Login onLogin={handleLogin} onCreateAccount={handleCreateAccount} onRecoverPassword={handleRecoverPassword} />;
+    return (
+      <Login 
+        onLogin={handleLogin} 
+        onCreateAccount={handleCreateAccount} 
+        onRecoverPassword={handleRecoverPassword} 
+      />
+    );
   }
 
   return (

@@ -15,7 +15,8 @@ const SUBJECTS: Subject[] = [
   'Bangla', 'English', 'ICT', 
   'Higher Math 1st Paper', 'Higher Math 2nd Paper',
   'Physics 1st Paper', 'Physics 2nd Paper',
-  'Chemistry 1st Paper', 'Chemistry 2nd Paper'
+  'Chemistry 1st Paper', 'Chemistry 2nd Paper',
+  'Biology 1st Paper', 'Biology 2nd Paper'
 ];
 
 export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, onAdd }) => {
@@ -207,7 +208,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
               </div>
 
               <div className="space-y-2 group">
-                <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">YouTube Link</label>
+                <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">Video Link (YouTube or Direct)</label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-red-500 transition-colors">
                     {isFetchingTitle ? (
@@ -221,7 +222,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                     type="url"
                     value={youtubeUrl}
                     onChange={handleYoutubeUrlChange}
-                    placeholder="https://youtube.com/watch?v=..."
+                    placeholder="https://youtube.com/... or https://.../video.mp4"
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-red-500/50 focus:bg-red-500/5 focus:ring-1 focus:ring-red-500/50 transition-all text-white placeholder:text-white/20 font-medium"
                   />
                 </div>
