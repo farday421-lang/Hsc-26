@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Brain, Fingerprint, Lock, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { Brain, Fingerprint, Lock, CheckCircle2, Loader2, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { playSuccessSound } from '../lib/sounds';
 
@@ -28,6 +28,9 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
   const [answer, setAnswer] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryId, setRecoveryId] = useState('');
 
   useEffect(() => {
     generateCaptcha();
@@ -41,6 +44,23 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
     }
     setCaptcha(result);
     setAnswer('');
+  };
+
+  const handleRecoverPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryId.trim()) {
+      alert("Please enter your Student ID.");
+      return;
+    }
+    const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+    const user = allData[recoveryId.trim()];
+    if (user && user.password) {
+      alert(`Security Check Passed.\n\nYour password is: ${user.password}\n\nPlease keep it safe!`);
+      setIsRecovering(false);
+      setUsername(recoveryId.trim());
+    } else {
+      alert("Account not found on this device.\n\nFor security reasons, passwords can only be recovered from the device you originally used to log in.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,46 +146,100 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
           <p className="text-white/40 text-xs font-medium">Verify your neural link to continue</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Username Input */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
-              {isCreating ? "New Student ID" : "Student ID"}
-            </label>
-            <div className="relative group">
-              <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-neon-blue transition-colors" />
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your ID..."
-                className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20 font-medium"
-                disabled={isUnlocked || isLoading}
-              />
+        {isRecovering ? (
+          <form onSubmit={handleRecoverPassword} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                Recover Password
+              </label>
+              <div className="relative group">
+                <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-neon-blue transition-colors" />
+                <input
+                  type="text"
+                  value={recoveryId}
+                  onChange={(e) => setRecoveryId(e.target.value)}
+                  placeholder="Enter your Student ID..."
+                  className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20 font-medium"
+                />
+              </div>
             </div>
-          </div>
-
-          {/* Password Input */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1">
-              Password
-            </label>
-            <div className="relative group">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-neon-purple transition-colors" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password..."
-                className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:border-neon-purple/50 transition-all text-white placeholder:text-white/20 font-medium"
-                disabled={isUnlocked || isLoading}
-              />
+            <button
+              type="submit"
+              disabled={!recoveryId.trim()}
+              className="w-full py-3 mt-4 rounded-lg font-bold text-white text-sm tracking-widest uppercase bg-gradient-to-r from-gray-900 to-gray-700 hover:from-black hover:to-gray-800 transition-all shadow-lg border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Show Password
+            </button>
+            <div className="mt-6 pt-4 border-t border-white/5 text-center">
+              <button
+                type="button"
+                onClick={() => setIsRecovering(false)}
+                className="text-[10px] font-bold text-white/40 hover:text-neon-blue uppercase tracking-widest transition-colors"
+              >
+                Back to Login
+              </button>
             </div>
-          </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Username Input */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
+                {isCreating ? "New Student ID" : "Student ID"}
+              </label>
+              <div className="relative group">
+                <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-neon-blue transition-colors" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your ID..."
+                  className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20 font-medium"
+                  disabled={isUnlocked || isLoading}
+                />
+              </div>
+            </div>
 
-          {/* Puzzle Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between ml-1">
+            {/* Password Input */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em]">
+                  Password
+                </label>
+                {!isCreating && (
+                  <button
+                    type="button"
+                    onClick={() => setIsRecovering(true)}
+                    className="text-[10px] font-bold text-white/40 hover:text-neon-purple uppercase tracking-wider transition-colors"
+                  >
+                    Forgot?
+                  </button>
+                )}
+              </div>
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-neon-purple transition-colors" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password..."
+                  className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:border-neon-purple/50 transition-all text-white placeholder:text-white/20 font-medium"
+                  disabled={isUnlocked || isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60 transition-colors"
+                  disabled={isUnlocked || isLoading}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Puzzle Section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between ml-1">
               <label className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em]">
                 Security Code
               </label>
@@ -240,24 +314,27 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
             {isCreating ? "Create Account" : "Login"}
           </button>
         </form>
+        )}
 
         {/* Toggle Mode */}
-        <div className="mt-6 pt-4 border-t border-white/5 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsCreating(!isCreating);
-              setUsername('');
-              setPassword('');
-              setAnswer('');
-              generateCaptcha();
-            }}
-            disabled={isUnlocked || isLoading}
-            className="text-[10px] font-bold text-white/40 hover:text-neon-blue uppercase tracking-widest transition-colors"
-          >
-            {isCreating ? "Already registered? Login here" : "New student? Create Account"}
-          </button>
-        </div>
+        {!isRecovering && (
+          <div className="mt-6 pt-4 border-t border-white/5 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreating(!isCreating);
+                setUsername('');
+                setPassword('');
+                setAnswer('');
+                generateCaptcha();
+              }}
+              disabled={isUnlocked || isLoading}
+              className="text-[10px] font-bold text-white/40 hover:text-neon-blue uppercase tracking-widest transition-colors"
+            >
+              {isCreating ? "Already registered? Login here" : "New student? Create Account"}
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );

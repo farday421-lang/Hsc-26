@@ -8,6 +8,12 @@
 }
 
 @layer base {
+  @media (max-width: 768px) {
+    html {
+      font-size: 60%; /* Scales down the UI on mobile to look like 60% zoom */
+    }
+  }
+
   body {
     @apply bg-brand-black text-white selection:bg-neon-blue/30;
     background: radial-gradient(circle at top right, #1a1a1a, #0a0a0a);
