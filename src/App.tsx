@@ -94,12 +94,20 @@ export default function App() {
     }
   }, []);
 
-  // Persist data to localStorage
+  // Persist data to localStorage and Supabase
   useEffect(() => {
     if (userData && currentUser) {
       const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
       allData[currentUser] = userData;
       localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(allData));
+      
+      // Also update total study hours in Supabase if it changed
+      supabase.from('users').update({
+        total_study_hours: userData.totalStudyHours,
+        last_active_date: new Date().toISOString()
+      }).eq('username', currentUser).then(({ error }) => {
+        if (error) console.error('Error updating user stats:', error);
+      });
     }
   }, [userData, currentUser]);
 
@@ -190,13 +198,36 @@ export default function App() {
       const localUserData = allData[username] || { classes: [] };
       
       const mergedClasses = [...formattedClasses];
+      const classesToSync: any[] = [];
       
       // Add any classes from localStorage that aren't in Supabase
       localUserData.classes.forEach((localClass: ClassItem) => {
         if (!mergedClasses.some(c => c.id === localClass.id)) {
           mergedClasses.push(localClass);
+          classesToSync.push({
+            id: localClass.id,
+            username: username,
+            title: localClass.title,
+            subject: localClass.subject,
+            youtube_url: localClass.youtubeUrl,
+            pdf_url: localClass.pdfUrl,
+            date_added: localClass.dateAdded,
+            progress: localClass.progress,
+            is_bookmarked: localClass.isBookmarked,
+            last_watched_at: localClass.lastWatchedAt,
+            last_position: localClass.lastPosition
+          });
         }
       });
+      
+      // Sync to Supabase in the background
+      if (classesToSync.length > 0) {
+        console.log('Syncing local classes to Supabase:', classesToSync.length);
+        supabase.from('classes').insert(classesToSync).then(({ error }) => {
+          if (error) console.error('Error syncing classes:', error);
+          else console.log('Successfully synced local classes to Supabase');
+        });
+      }
       
       // Sort by date added
       mergedClasses.sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime());
