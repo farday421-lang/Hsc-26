@@ -26,7 +26,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({ stats, onNavigate,
   }, []);
 
   return (
-    <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-6">
+    <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-6 pointer-events-none">
       <motion.div
         layout
         initial={false}
@@ -43,7 +43,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({ stats, onNavigate,
           mass: 0.8,
         }}
         onClick={() => !isExpanded && setIsExpanded(true)}
-        className="bg-black/80 backdrop-blur-2xl shadow-2xl cursor-pointer overflow-hidden group relative flex"
+        className="bg-black/80 backdrop-blur-2xl shadow-2xl cursor-pointer overflow-hidden group relative flex pointer-events-auto"
       >
         {/* Neon Glow Loop Animation */}
         <motion.div

@@ -62,21 +62,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Classes', value: stats.total, icon: BookOpen, color: 'text-white' },
-          { label: 'Completed', value: stats.completed, icon: CheckCircle2, color: 'text-green-500' },
-          { label: 'In Progress', value: stats.half, icon: Circle, color: 'text-neon-blue' },
-          { label: 'Not Started', value: stats.notStarted, icon: Clock, color: 'text-white/40' },
+          { label: 'Total Classes', value: stats.total, icon: BookOpen, color: 'text-white', bg: 'bg-white/5', border: 'border-white/10' },
+          { label: 'Completed', value: stats.completed, icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/5', border: 'border-green-500/20' },
+          { label: 'In Progress', value: stats.half, icon: Circle, color: 'text-neon-blue', bg: 'bg-neon-blue/5', border: 'border-neon-blue/20' },
+          { label: 'Not Started', value: stats.notStarted, icon: Clock, color: 'text-white/40', bg: 'bg-white/5', border: 'border-white/5' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="glass-card p-6 flex flex-col items-center text-center space-y-2"
+            className={cn(
+              "glass-card p-6 flex flex-col items-center text-center space-y-3 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300",
+              stat.bg,
+              stat.border
+            )}
           >
-            <stat.icon className={cn("w-6 h-6 mb-2", stat.color)} />
-            <span className="text-3xl font-bold">{stat.value}</span>
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">{stat.label}</span>
+            <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className={cn("p-3 rounded-xl bg-brand-black/50 backdrop-blur-md border border-white/5", stat.color)}>
+              <stat.icon className="w-6 h-6" />
+            </div>
+            <div className="space-y-1 relative z-10">
+              <div className="text-4xl font-black tracking-tighter">{stat.value}</div>
+              <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{stat.label}</div>
+            </div>
           </motion.div>
         ))}
       </div>
@@ -90,30 +99,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
             exit={{ opacity: 0, y: 20 }}
             className="space-y-6"
           >
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-neon-blue" />
-              <h2 className="text-xl font-bold uppercase tracking-wider">Continue Learning</h2>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-neon-blue/10 border border-neon-blue/20">
+                <Clock className="w-5 h-5 text-neon-blue" />
+              </div>
+              <h2 className="text-xl font-bold uppercase tracking-widest">Continue Learning</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {unfinishedClasses.map(c => (
-                <div key={c.id} className="glass-card p-4 flex items-center justify-between gap-4 group hover:border-neon-blue/30 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-bold text-neon-blue uppercase tracking-widest">{c.subject}</span>
-                    <h4 className="text-sm font-bold truncate">{c.title}</h4>
+                <div key={c.id} className="glass-card p-5 flex items-center justify-between gap-4 group hover:border-neon-blue/40 hover:shadow-[0_0_20px_rgba(0,242,255,0.15)] transition-all duration-300 bg-gradient-to-r from-white/5 to-transparent">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <span className="text-[9px] font-bold text-neon-blue uppercase tracking-widest px-2 py-0.5 rounded-full bg-neon-blue/10 border border-neon-blue/20 inline-block">{c.subject}</span>
+                    <h4 className="text-sm font-bold truncate group-hover:text-neon-blue transition-colors">{c.title}</h4>
                   </div>
                   <FuturisticButton 
                     onClick={() => {
                       const element = document.getElementById(`class-${c.id}`);
                       if (element) {
                         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        // Add a temporary highlight effect
                         element.classList.add('ring-2', 'ring-neon-blue', 'ring-offset-4', 'ring-offset-brand-black');
                         setTimeout(() => {
                           element.classList.remove('ring-2', 'ring-neon-blue', 'ring-offset-4', 'ring-offset-brand-black');
                         }, 2000);
                       }
                     }}
-                    className="px-4 py-2 text-xs h-9"
+                    className="px-4 py-2 text-xs h-9 shrink-0"
                     showAnimatedBorder
                   >
                     Resume
@@ -187,7 +197,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
             <button
               onClick={() => handleSubjectChange('All')}
               className={cn(
-                "relative h-12 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group",
+                "relative h-11 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group",
                 selectedSubject === 'All' 
                   ? "text-brand-black" 
                   : "text-white/40 hover:text-white"
@@ -204,7 +214,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
                 "relative h-full px-6 flex items-center justify-center rounded-xl border transition-all duration-200 group-active:translate-y-0.5 overflow-hidden",
                 selectedSubject === 'All' 
                   ? "bg-white border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]" 
-                  : "bg-brand-black border-white/10 hover:border-white/20"
+                  : "bg-brand-black border-white/10 hover:border-white/20 hover:bg-white/5"
               )}>
                 {selectedSubject === 'All' && (
                   <motion.div 
@@ -222,7 +232,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
                 key={s}
                 onClick={() => handleSubjectChange(s)}
                 className={cn(
-                  "relative h-12 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group",
+                  "relative h-11 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap group",
                   selectedSubject === s 
                     ? "text-brand-black" 
                     : "text-white/40 hover:text-white"
@@ -239,7 +249,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onUpdateClass, o
                   "relative h-full px-6 flex items-center justify-center rounded-xl border transition-all duration-200 group-active:translate-y-0.5 overflow-hidden",
                   selectedSubject === s 
                     ? "bg-neon-blue border-neon-blue shadow-[0_0_20px_rgba(0,242,255,0.3)]" 
-                    : "bg-brand-black border-white/10 hover:border-white/20"
+                    : "bg-brand-black border-white/10 hover:border-white/20 hover:bg-white/5"
                 )}>
                   {selectedSubject === s && (
                     <motion.div 

@@ -120,22 +120,25 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="glass-card w-full max-w-lg p-8 relative z-10 overflow-hidden"
+            className="glass-card w-full max-w-lg p-8 relative z-10 overflow-hidden bg-gradient-to-br from-brand-black/90 to-brand-grey/90 border border-white/10 shadow-[0_0_50px_rgba(0,242,255,0.1)]"
           >
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-neon-blue to-neon-purple" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-blue bg-[length:200%_100%] animate-gradient" />
             
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold tracking-tight">Add New Class</h2>
-              <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                <X className="w-6 h-6 text-white/40" />
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">Add New Class</h2>
+                <p className="text-xs text-white/40 font-medium tracking-wide">Expand your learning journey</p>
+              </div>
+              <button type="button" onClick={onClose} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full transition-all duration-300 group">
+                <X className="w-5 h-5 text-white/40 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest ml-1">Class Title</label>
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">Class Title</label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-neon-blue transition-colors">
                     <Tag className="w-4 h-4" />
                   </div>
                   <input
@@ -144,28 +147,33 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Integration Basic Part 1"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-neon-blue/50 focus:bg-neon-blue/5 focus:ring-1 focus:ring-neon-blue/50 transition-all text-white placeholder:text-white/20 font-medium"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest ml-1">Subject</label>
-                <select
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value as Subject)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-neon-blue/50 transition-all text-white appearance-none cursor-pointer"
-                >
-                  {SUBJECTS.map(s => (
-                    <option key={s} value={s} className="bg-brand-grey">{s}</option>
-                  ))}
-                </select>
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">Subject</label>
+                <div className="relative">
+                  <select
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value as Subject)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 focus:outline-none focus:border-neon-blue/50 focus:bg-neon-blue/5 focus:ring-1 focus:ring-neon-blue/50 transition-all text-white appearance-none cursor-pointer font-medium"
+                  >
+                    {SUBJECTS.map(s => (
+                      <option key={s} value={s} className="bg-brand-grey">{s}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20 group-focus-within:text-neon-blue transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest ml-1">YouTube Link</label>
+              <div className="space-y-2 group">
+                <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">YouTube Link</label>
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-red-500 transition-colors">
                     <Youtube className="w-4 h-4" />
                   </div>
                   <input
@@ -174,29 +182,29 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                     value={youtubeUrl}
                     onChange={(e) => setYoutubeUrl(e.target.value)}
                     placeholder="https://youtube.com/watch?v=..."
-                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-red-500/50 focus:bg-red-500/5 focus:ring-1 focus:ring-red-500/50 transition-all text-white placeholder:text-white/20 font-medium"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between ml-1">
-                  <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">PDF Notes (Optional)</label>
-                  <div className="flex bg-white/5 rounded-lg p-0.5">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">PDF Notes (Optional)</label>
+                  <div className="flex bg-white/5 rounded-lg p-1 border border-white/5">
                     <button
                       type="button"
                       onClick={() => setUploadMode('url')}
-                      className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors ${
-                        uploadMode === 'url' ? 'bg-neon-blue text-black' : 'text-white/40 hover:text-white'
+                      className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-300 ${
+                        uploadMode === 'url' ? 'bg-neon-blue text-brand-black shadow-[0_0_10px_rgba(0,242,255,0.3)]' : 'text-white/40 hover:text-white hover:bg-white/5'
                       }`}
                     >
-                      <LinkIcon className="w-3 h-3 inline-block mr-1" /> URL
+                      <LinkIcon className="w-3 h-3 inline-block mr-1.5" /> URL
                     </button>
                     <button
                       type="button"
                       onClick={() => setUploadMode('file')}
-                      className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors ${
-                        uploadMode === 'file' ? 'bg-neon-blue text-black' : 'text-white/40 hover:text-white'
+                      className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all duration-300 ${
+                        uploadMode === 'file' ? 'bg-neon-blue text-brand-black shadow-[0_0_10px_rgba(0,242,255,0.3)]' : 'text-white/40 hover:text-white hover:bg-white/5'
                       }`}
                     >
                       <UploadCloud className="w-3 h-3 inline-block mr-1" /> Upload
@@ -205,8 +213,8 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                 </div>
 
                 {uploadMode === 'url' ? (
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20">
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-neon-blue transition-colors">
                       <FileText className="w-4 h-4" />
                     </div>
                     <input
@@ -214,7 +222,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                       value={pdfUrl}
                       onChange={(e) => setPdfUrl(e.target.value)}
                       placeholder="https://drive.google.com/..."
-                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-neon-blue/50 focus:bg-neon-blue/5 focus:ring-1 focus:ring-neon-blue/50 transition-all text-white placeholder:text-white/20 font-medium"
                     />
                   </div>
                 ) : (
@@ -228,28 +236,32 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                     />
                     <div 
                       onClick={() => fileInputRef.current?.click()}
-                      className={`w-full bg-white/5 border border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                        file ? 'border-neon-blue/50 bg-neon-blue/5' : 'border-white/20 hover:border-neon-blue/50 hover:bg-white/10'
+                      className={`w-full bg-white/5 border border-dashed rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${
+                        file ? 'border-neon-blue/50 bg-neon-blue/5 shadow-[inset_0_0_20px_rgba(0,242,255,0.05)]' : 'border-white/20 hover:border-neon-blue/50 hover:bg-white/10 hover:shadow-[inset_0_0_20px_rgba(0,242,255,0.05)]'
                       }`}
                     >
                       {file ? (
                         <>
-                          <FileText className="w-6 h-6 text-neon-blue mb-2" />
-                          <p className="text-sm font-medium text-white truncate max-w-[200px]">{file.name}</p>
-                          <p className="text-xs text-white/40 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                          <div className="w-12 h-12 rounded-full bg-neon-blue/10 flex items-center justify-center mb-3">
+                            <FileText className="w-6 h-6 text-neon-blue" />
+                          </div>
+                          <p className="text-sm font-bold text-white truncate max-w-[200px]">{file.name}</p>
+                          <p className="text-[10px] font-bold text-neon-blue uppercase tracking-widest mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                         </>
                       ) : (
                         <>
-                          <UploadCloud className="w-6 h-6 text-white/40 mb-2" />
-                          <p className="text-sm text-white/60">Click to upload study material</p>
-                          <p className="text-xs text-white/30 mt-1">PDF, DOC, PPT, or Images up to 50MB</p>
+                          <div className="w-12 h-12 rounded-full bg-white/5 group-hover:bg-neon-blue/10 flex items-center justify-center mb-3 transition-colors duration-300">
+                            <UploadCloud className="w-6 h-6 text-white/40 group-hover:text-neon-blue transition-colors duration-300" />
+                          </div>
+                          <p className="text-sm font-bold text-white/80 group-hover:text-white transition-colors">Click to upload study material</p>
+                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-2">PDF, DOC, PPT, or Images up to 50MB</p>
                         </>
                       )}
                     </div>
                     {uploadError && (
-                      <p className="text-xs text-red-400 mt-2 flex items-start gap-1">
+                      <p className="text-xs text-red-400 mt-2 flex items-start gap-1 p-2 bg-red-500/10 rounded-lg border border-red-500/20">
                         <X className="w-3 h-3 shrink-0 mt-0.5" />
-                        <span>{uploadError}</span>
+                        <span className="font-medium">{uploadError}</span>
                       </p>
                     )}
                   </div>
@@ -259,12 +271,13 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
               <FuturisticButton
                 type="submit"
                 disabled={isUploading}
-                className="w-full py-4"
+                className="w-full py-4 mt-4 text-sm"
+                showAnimatedBorder
               >
                 {isUploading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 ) : (
-                  <Send className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                  <Send className="w-5 h-5 mr-2 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 )}
                 {isUploading ? 'Uploading & Adding...' : 'Add to Dashboard'}
               </FuturisticButton>

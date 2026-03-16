@@ -175,11 +175,27 @@ export default function App() {
         lastPosition: c.last_position
       }));
 
+      // Merge with localStorage data to prevent data loss if Supabase insert failed
+      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+      const localUserData = allData[username] || { classes: [] };
+      
+      const mergedClasses = [...formattedClasses];
+      
+      // Add any classes from localStorage that aren't in Supabase
+      localUserData.classes.forEach((localClass: ClassItem) => {
+        if (!mergedClasses.some(c => c.id === localClass.id)) {
+          mergedClasses.push(localClass);
+        }
+      });
+      
+      // Sort by date added
+      mergedClasses.sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime());
+
       setUserData({
         username: user.username,
         totalStudyHours: user.total_study_hours || 0,
         lastActiveDate: user.last_active_date,
-        classes: formattedClasses
+        classes: mergedClasses
       });
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -311,13 +327,13 @@ export default function App() {
       
       if (error) {
         console.error('Supabase insert error:', error);
-        alert(`Error: ${error.message}`);
+        // Silently fail and rely on local storage fallback
       } else {
         console.log('Class added successfully');
       }
     } catch (error: any) {
       console.error('Error adding class:', error);
-      alert(`Failed to add class: ${error.message || 'Unknown error'}`);
+      // Silently fail and rely on local storage fallback
     } finally {
       setTimeout(() => setIsSaving(false), 1000);
     }

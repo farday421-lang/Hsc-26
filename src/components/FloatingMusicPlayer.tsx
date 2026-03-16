@@ -40,7 +40,7 @@ export function FloatingMusicPlayer() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
       <motion.div
         initial={false}
         animate={{ 
@@ -53,7 +53,7 @@ export function FloatingMusicPlayer() {
           height: isExpanded ? 'min(70vh, 600px)' : '460px',
         }}
         transition={{ duration: 0.4, type: 'spring', bounce: 0.3 }}
-        className="mb-6 bg-[#0a0a0a]/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-[0_0_50px_rgba(0,255,255,0.15)] overflow-hidden flex flex-col origin-bottom-right"
+        className="mb-6 bg-[#0a0a0a]/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] shadow-[0_0_50px_rgba(0,255,255,0.15)] overflow-hidden flex flex-col origin-bottom-right pointer-events-auto"
       >
         {/* Header */}
         <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-neon-blue/5 via-transparent to-transparent">
@@ -168,7 +168,7 @@ export function FloatingMusicPlayer() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`relative w-16 h-16 rounded-full shadow-[0_0_30px_rgba(0,255,255,0.3)] flex items-center justify-center transition-colors duration-500 ${
+        className={`relative w-16 h-16 rounded-full shadow-[0_0_30px_rgba(0,255,255,0.3)] flex items-center justify-center transition-colors duration-500 pointer-events-auto ${
           isOpen 
             ? 'bg-white/10 text-white border border-white/20' 
             : 'bg-gradient-to-br from-[#00f0ff] to-[#0080ff] text-black border border-white/20'
