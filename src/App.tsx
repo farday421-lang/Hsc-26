@@ -137,10 +137,20 @@ export default function App() {
           }
           user = newUser;
         } else {
-          // If user not found and not creating new, clear session
-          console.log('User not found and not new, logging out.');
-          handleLogout();
-          return;
+          // If user not found in Supabase, check local storage before logging out
+          const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+          if (allData[username]) {
+            console.log('User not found in Supabase, but exists locally. Proceeding with local data.');
+            user = {
+              username,
+              total_study_hours: allData[username].totalStudyHours || 0,
+              last_active_date: allData[username].lastActiveDate || new Date().toISOString()
+            };
+          } else {
+            console.log('User not found and not new, logging out.');
+            handleLogout();
+            return;
+          }
         }
       }
 
@@ -228,6 +238,17 @@ export default function App() {
 
       if (error) {
         console.error('Supabase login error:', error);
+        
+        // Check local storage as fallback for offline/error cases
+        const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+        if (allData[username]) {
+          console.log('User found in local storage fallback (offline mode):', username);
+          setCurrentUser(username);
+          localStorage.setItem('hsc_2026_current_user', username);
+          await loadUserData(username);
+          return true;
+        }
+
         if (error.message.includes('Failed to fetch')) {
           alert("Connection error: Could not reach Supabase. Check your URL and internet.");
           return false;
@@ -237,8 +258,22 @@ export default function App() {
       }
 
       if (!data) {
-        alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
-        return false;
+        // Check local storage as fallback
+        const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+        if (allData[username]) {
+          console.log('User found in local storage fallback:', username);
+          // Try to create the user in Supabase in the background since they exist locally
+          supabase.from('users').insert([{ 
+            username, 
+            total_study_hours: allData[username].totalStudyHours || 0, 
+            last_active_date: new Date().toISOString() 
+          }]).then(({ error }) => {
+            if (error) console.error('Background sync user creation failed:', error);
+          });
+        } else {
+          alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
+          return false;
+        }
       }
 
       console.log('Login successful for:', username);
@@ -264,12 +299,31 @@ export default function App() {
 
       if (checkError) {
         console.error('Error checking existing user:', checkError);
-        alert(`Error checking account: ${checkError.message}`);
-        return false;
+        
+        // Check local storage as fallback
+        const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+        if (allData[username]) {
+          alert(`Username "${username}" already exists locally. Please login instead.`);
+          return false;
+        }
+
+        // Allow offline creation
+        console.log('Account does not exist locally, proceeding to create offline...');
+        setCurrentUser(username);
+        localStorage.setItem('hsc_2026_current_user', username);
+        await loadUserData(username, true);
+        return true;
       }
 
       if (existingUser) {
         alert(`Username "${username}" already exists. Please login instead.`);
+        return false;
+      }
+
+      // Also check local storage to prevent overwriting an offline account
+      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+      if (allData[username]) {
+        alert(`Username "${username}" already exists locally. Please login instead.`);
         return false;
       }
 
