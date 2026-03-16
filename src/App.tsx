@@ -486,6 +486,35 @@ export default function App() {
     };
   }, [userData]);
 
+  const handleRecoverPassword = async (username: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('password')
+        .eq('username', username)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error recovering password:', error);
+      }
+      
+      if (data && data.password) {
+        return data.password;
+      }
+      
+      // Fallback to local storage
+      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
+      if (allData[username] && allData[username].password) {
+        return allData[username].password;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error('Exception recovering password:', err);
+      return null;
+    }
+  };
+
   if (connectionError) {
     return (
       <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center p-6 text-center">
@@ -597,7 +626,7 @@ export default function App() {
   }
 
   if (!currentUser || !userData) {
-    return <Login onLogin={handleLogin} onCreateAccount={handleCreateAccount} />;
+    return <Login onLogin={handleLogin} onCreateAccount={handleCreateAccount} onRecoverPassword={handleRecoverPassword} />;
   }
 
   return (

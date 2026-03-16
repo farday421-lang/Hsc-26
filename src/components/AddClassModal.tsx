@@ -22,7 +22,29 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
   const [title, setTitle] = useState('');
   const [subject, setSubject] = useState<Subject>('ICT');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [isFetchingTitle, setIsFetchingTitle] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
+
+  const handleYoutubeUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setYoutubeUrl(url);
+
+    const ytRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
+    if (ytRegex.test(url)) {
+      setIsFetchingTitle(true);
+      try {
+        const response = await fetch(`https://noembed.com/embed?dataType=json&url=${encodeURIComponent(url)}`);
+        const data = await response.json();
+        if (data && data.title) {
+          setTitle(data.title);
+        }
+      } catch (error) {
+        console.error('Failed to fetch YouTube title:', error);
+      } finally {
+        setIsFetchingTitle(false);
+      }
+    }
+  };
   
   // File upload state
   const [uploadMode, setUploadMode] = useState<'url' | 'file'>('url');
@@ -30,6 +52,19 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTitle('');
+      setSubject('ICT');
+      setYoutubeUrl('');
+      setIsFetchingTitle(false);
+      setPdfUrl('');
+      setUploadMode('url');
+      setFile(null);
+      setUploadError('');
+    }
+  }, [isOpen]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -97,6 +132,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
     // Reset state
     setTitle('');
     setYoutubeUrl('');
+    setIsFetchingTitle(false);
     setPdfUrl('');
     setFile(null);
     setUploadMode('url');
@@ -174,13 +210,17 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                 <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">YouTube Link</label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-red-500 transition-colors">
-                    <Youtube className="w-4 h-4" />
+                    {isFetchingTitle ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-neon-blue" />
+                    ) : (
+                      <Youtube className="w-4 h-4" />
+                    )}
                   </div>
                   <input
                     required
                     type="url"
                     value={youtubeUrl}
-                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    onChange={handleYoutubeUrlChange}
                     placeholder="https://youtube.com/watch?v=..."
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-red-500/50 focus:bg-red-500/5 focus:ring-1 focus:ring-red-500/50 transition-all text-white placeholder:text-white/20 font-medium"
                   />

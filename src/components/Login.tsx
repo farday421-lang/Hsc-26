@@ -7,6 +7,7 @@ import { playSuccessSound } from '../lib/sounds';
 interface SlideToLoginProps {
   onLogin: (username: string, password?: string) => Promise<boolean>;
   onCreateAccount: (username: string, password?: string) => Promise<boolean>;
+  onRecoverPassword: (username: string) => Promise<string | null>;
 }
 
 const SYMBOLS = [
@@ -20,7 +21,7 @@ const SYMBOLS = [
   { char: 'λ', size: 'text-6xl', top: '85%', left: '50%', duration: 19 },
 ];
 
-export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount }) => {
+export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount, onRecoverPassword }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -31,6 +32,7 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
   const [showPassword, setShowPassword] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryId, setRecoveryId] = useState('');
+  const [isRecoveringLoading, setIsRecoveringLoading] = useState(false);
 
   useEffect(() => {
     generateCaptcha();
@@ -46,20 +48,23 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
     setAnswer('');
   };
 
-  const handleRecoverPassword = (e: React.FormEvent) => {
+  const handleRecoverPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recoveryId.trim()) {
       alert("Please enter your Student ID.");
       return;
     }
-    const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-    const user = allData[recoveryId.trim()];
-    if (user && user.password) {
-      alert(`Security Check Passed.\n\nYour password is: ${user.password}\n\nPlease keep it safe!`);
+    
+    setIsRecoveringLoading(true);
+    const recoveredPassword = await onRecoverPassword(recoveryId.trim());
+    setIsRecoveringLoading(false);
+
+    if (recoveredPassword) {
+      alert(`Security Check Passed.\n\nYour password is: ${recoveredPassword}\n\nPlease keep it safe!`);
       setIsRecovering(false);
       setUsername(recoveryId.trim());
     } else {
-      alert("Account not found on this device.\n\nFor security reasons, passwords can only be recovered from the device you originally used to log in.");
+      alert("Account not found or no password set.\n\nPlease check your Student ID and try again.");
     }
   };
 
@@ -165,10 +170,17 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
             </div>
             <button
               type="submit"
-              disabled={!recoveryId.trim()}
-              className="w-full py-3 mt-4 rounded-lg font-bold text-white text-sm tracking-widest uppercase bg-gradient-to-r from-gray-900 to-gray-700 hover:from-black hover:to-gray-800 transition-all shadow-lg border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!recoveryId.trim() || isRecoveringLoading}
+              className="w-full py-3 mt-4 rounded-lg font-bold text-white text-sm tracking-widest uppercase bg-gradient-to-r from-gray-900 to-gray-700 hover:from-black hover:to-gray-800 transition-all shadow-lg border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Show Password
+              {isRecoveringLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Show Password"
+              )}
             </button>
             <div className="mt-6 pt-4 border-t border-white/5 text-center">
               <button
