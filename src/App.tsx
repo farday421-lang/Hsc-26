@@ -103,7 +103,7 @@ export default function App() {
     }
   }, [userData, currentUser]);
 
-  const loadUserData = async (username: string, isNewUser: boolean = false) => {
+  const loadUserData = async (username: string, isNewUser: boolean = false, password?: string) => {
     setIsLoading(true);
     console.log('Loading user data for:', username, 'isNewUser:', isNewUser);
     try {
@@ -127,7 +127,7 @@ export default function App() {
           console.log('Creating new user in Supabase...');
           const { data: newUser, error: createError } = await supabase
             .from('users')
-            .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }])
+            .insert([{ username, password, total_study_hours: 0, last_active_date: new Date().toISOString() }])
             .select()
             .single();
           
@@ -227,12 +227,12 @@ export default function App() {
     }
   };
 
-  const handleLogin = async (username: string): Promise<boolean> => {
+  const handleLogin = async (username: string, password?: string): Promise<boolean> => {
     try {
       console.log('Attempting login for:', username);
       const { data, error } = await supabase
         .from('users')
-        .select('username')
+        .select('username, password')
         .eq('username', username)
         .maybeSingle();
 
@@ -242,6 +242,10 @@ export default function App() {
         // Check local storage as fallback for offline/error cases
         const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
         if (allData[username]) {
+          if (allData[username].password && allData[username].password !== password) {
+            alert("Incorrect password!");
+            return false;
+          }
           console.log('User found in local storage fallback (offline mode):', username);
           setCurrentUser(username);
           localStorage.setItem('hsc_2026_current_user', username);
@@ -261,10 +265,15 @@ export default function App() {
         // Check local storage as fallback
         const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
         if (allData[username]) {
+          if (allData[username].password && allData[username].password !== password) {
+            alert("Incorrect password!");
+            return false;
+          }
           console.log('User found in local storage fallback:', username);
           // Try to create the user in Supabase in the background since they exist locally
           supabase.from('users').insert([{ 
             username, 
+            password,
             total_study_hours: allData[username].totalStudyHours || 0, 
             last_active_date: new Date().toISOString() 
           }]).then(({ error }) => {
@@ -273,6 +282,16 @@ export default function App() {
         } else {
           alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
           return false;
+        }
+      } else {
+        // User exists in Supabase, check password
+        if (data.password && data.password !== password) {
+          alert("Incorrect password!");
+          return false;
+        }
+        // If they don't have a password set yet (legacy user), set it now
+        if (!data.password && password) {
+          await supabase.from('users').update({ password }).eq('username', username);
         }
       }
 
@@ -288,7 +307,7 @@ export default function App() {
     }
   };
 
-  const handleCreateAccount = async (username: string): Promise<boolean> => {
+  const handleCreateAccount = async (username: string, password?: string): Promise<boolean> => {
     try {
       console.log('Attempting to create account for:', username);
       const { data: existingUser, error: checkError } = await supabase
@@ -311,7 +330,12 @@ export default function App() {
         console.log('Account does not exist locally, proceeding to create offline...');
         setCurrentUser(username);
         localStorage.setItem('hsc_2026_current_user', username);
-        await loadUserData(username, true);
+        
+        // Save password locally too
+        const newData = { ...allData, [username]: { password, totalStudyHours: 0, lastActiveDate: new Date().toISOString(), classes: [] } };
+        localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(newData));
+
+        await loadUserData(username, true, password);
         return true;
       }
 
@@ -332,7 +356,12 @@ export default function App() {
       console.log('Account does not exist, proceeding to create...');
       setCurrentUser(username);
       localStorage.setItem('hsc_2026_current_user', username);
-      await loadUserData(username, true);
+      
+      // Save password locally
+      const newData = { ...allData, [username]: { password, totalStudyHours: 0, lastActiveDate: new Date().toISOString(), classes: [] } };
+      localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(newData));
+
+      await loadUserData(username, true, password);
       return true;
     } catch (err: any) {
       console.error("Create account exception:", err);

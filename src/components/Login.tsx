@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Brain, Fingerprint, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { Brain, Fingerprint, Lock, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { playSuccessSound } from '../lib/sounds';
 
 interface SlideToLoginProps {
-  onLogin: (username: string) => Promise<boolean>;
-  onCreateAccount: (username: string) => Promise<boolean>;
+  onLogin: (username: string, password?: string) => Promise<boolean>;
+  onCreateAccount: (username: string, password?: string) => Promise<boolean>;
 }
 
 const SYMBOLS = [
@@ -22,44 +22,39 @@ const SYMBOLS = [
 
 export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount }) => {
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [puzzle, setPuzzle] = useState({ a: 0, b: 0, op: '+', ans: 0 });
+  const [captcha, setCaptcha] = useState('');
   const [answer, setAnswer] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    generatePuzzle();
+    generateCaptcha();
   }, []);
 
-  const generatePuzzle = () => {
-    const ops = ['+', '-', '×'];
-    const op = ops[Math.floor(Math.random() * ops.length)];
-    let a, b, ans;
-    if (op === '+') {
-      a = Math.floor(Math.random() * 20) + 10;
-      b = Math.floor(Math.random() * 20) + 10;
-      ans = a + b;
-    } else if (op === '-') {
-      a = Math.floor(Math.random() * 30) + 20;
-      b = Math.floor(Math.random() * 19) + 1;
-      ans = a - b;
-    } else {
-      a = Math.floor(Math.random() * 8) + 2;
-      b = Math.floor(Math.random() * 8) + 2;
-      ans = a * b;
+  const generateCaptcha = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 4; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setPuzzle({ a, b, op, ans });
+    setCaptcha(result);
     setAnswer('');
   };
 
-  useEffect(() => {
-    if (answer !== '' && parseInt(answer) === puzzle.ans && username.trim().length > 0) {
-      handleUnlock();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      alert("Please enter both ID and Password.");
+      return;
     }
-  }, [answer]);
+    if (answer.toUpperCase() !== captcha) {
+      alert("Incorrect security code.");
+      generateCaptcha();
+      return;
+    }
 
-  const handleUnlock = async () => {
     setIsUnlocked(true);
     setIsLoading(true);
     playSuccessSound();
@@ -68,19 +63,19 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
     await new Promise(r => setTimeout(r, 800));
 
     const success = isCreating
-      ? await onCreateAccount(username.trim())
-      : await onLogin(username.trim());
+      ? await onCreateAccount(username.trim(), password.trim())
+      : await onLogin(username.trim(), password.trim());
 
     if (!success) {
       setIsUnlocked(false);
       setIsLoading(false);
-      generatePuzzle();
+      generateCaptcha();
       setAnswer('');
     }
   };
 
   return (
-    <div className="min-h-screen bg-brand-black flex items-center justify-center p-6 relative overflow-hidden font-sans selection:bg-neon-blue/30">
+    <div className="min-h-screen bg-brand-black flex items-center justify-center p-4 relative overflow-hidden font-sans selection:bg-neon-blue/30">
       {/* Animated Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)]" />
 
@@ -112,52 +107,71 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card w-full max-w-md p-8 relative z-10 overflow-hidden shadow-[0_0_50px_rgba(0,242,255,0.05)]"
+        className="glass-card w-full max-w-sm p-6 relative z-10 overflow-hidden shadow-[0_0_50px_rgba(0,242,255,0.05)]"
       >
         {/* Top gradient line */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-neon-blue to-neon-purple" />
 
-        <div className="text-center mb-10">
+        <div className="text-center mb-6">
           <motion.div
             animate={{
               boxShadow: ["0 0 20px rgba(0,242,255,0.1)", "0 0 40px rgba(188,19,254,0.2)", "0 0 20px rgba(0,242,255,0.1)"]
             }}
             transition={{ duration: 4, repeat: Infinity }}
-            className="w-20 h-20 mx-auto bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center mb-6 backdrop-blur-md"
+            className="w-16 h-16 mx-auto bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center mb-4 backdrop-blur-md"
           >
-            <Brain className="w-10 h-10 text-neon-blue" />
+            <Brain className="w-8 h-8 text-neon-blue" />
           </motion.div>
-          <h2 className="text-3xl font-bold text-white tracking-tight mb-2">Study Gateway</h2>
-          <p className="text-white/40 text-sm font-medium">Verify your neural link to continue</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight mb-1">Study Gateway</h2>
+          <p className="text-white/40 text-xs font-medium">Verify your neural link to continue</p>
         </div>
 
-        <div className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Username Input */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <label className="text-[10px] font-bold text-neon-blue uppercase tracking-[0.2em] ml-1">
               {isCreating ? "New Student ID" : "Student ID"}
             </label>
             <div className="relative group">
-              <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20 group-focus-within:text-neon-blue transition-colors" />
+              <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-neon-blue transition-colors" />
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your ID..."
-                className="w-full bg-black/50 border-2 border-white/10 rounded-xl pl-12 pr-4 py-4 focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20 font-medium"
+                className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:border-neon-blue/50 transition-all text-white placeholder:text-white/20 font-medium"
+                disabled={isUnlocked || isLoading}
+              />
+            </div>
+          </div>
+
+          {/* Password Input */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em] ml-1">
+              Password
+            </label>
+            <div className="relative group">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-neon-purple transition-colors" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password..."
+                className="w-full bg-black/50 border border-white/10 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:border-neon-purple/50 transition-all text-white placeholder:text-white/20 font-medium"
                 disabled={isUnlocked || isLoading}
               />
             </div>
           </div>
 
           {/* Puzzle Section */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between ml-1">
-              <label className="text-[10px] font-bold text-neon-purple uppercase tracking-[0.2em]">
-                Security Puzzle
+              <label className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em]">
+                Security Code
               </label>
               <button
-                onClick={generatePuzzle}
+                type="button"
+                onClick={generateCaptcha}
                 disabled={isUnlocked || isLoading}
                 className="text-[10px] font-bold text-white/40 hover:text-white uppercase tracking-wider flex items-center gap-1 transition-colors"
               >
@@ -166,9 +180,9 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
             </div>
 
             <div className={cn(
-              "relative overflow-hidden rounded-2xl border-2 transition-all duration-500",
+              "relative overflow-hidden rounded-lg border transition-all duration-500",
               isUnlocked ? "border-neon-blue bg-neon-blue/10 shadow-[0_0_30px_rgba(0,242,255,0.3)]" : "border-white/10 bg-black/50",
-              !username.trim() && "opacity-50 grayscale pointer-events-none"
+              (!username.trim() || !password.trim()) && "opacity-50 grayscale pointer-events-none"
             )}>
               {/* Unlocked Overlay */}
               <AnimatePresence>
@@ -181,14 +195,14 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
                     <motion.div
                       initial={{ scale: 0.8 }}
                       animate={{ scale: 1 }}
-                      className="flex flex-col items-center gap-3"
+                      className="flex flex-col items-center gap-2"
                     >
                       {isLoading ? (
-                        <Loader2 className="w-10 h-10 text-neon-blue animate-spin" />
+                         <Loader2 className="w-8 h-8 text-neon-blue animate-spin" />
                       ) : (
-                        <CheckCircle2 className="w-10 h-10 text-neon-blue" />
+                        <CheckCircle2 className="w-8 h-8 text-neon-blue" />
                       )}
-                      <span className="text-neon-blue font-bold tracking-[0.2em] uppercase text-xs">
+                      <span className="text-neon-blue font-bold tracking-[0.2em] uppercase text-[10px]">
                         {isLoading ? "Authenticating..." : "Access Granted"}
                       </span>
                     </motion.div>
@@ -196,51 +210,50 @@ export const Login: React.FC<SlideToLoginProps> = ({ onLogin, onCreateAccount })
                 )}
               </AnimatePresence>
 
-              <div className="p-6 flex items-center justify-between relative z-10">
-                <div className="flex items-center gap-3 text-2xl font-mono font-bold text-white">
-                  <span className="bg-white/10 px-4 py-2 rounded-xl shadow-inner">{puzzle.a}</span>
-                  <span className="text-neon-purple">{puzzle.op}</span>
-                  <span className="bg-white/10 px-4 py-2 rounded-xl shadow-inner">{puzzle.b}</span>
-                  <span className="text-white/40">=</span>
+              <div className="p-3 flex items-center justify-between relative z-10 gap-3">
+                <div className="flex-1 flex items-center justify-center bg-white/5 py-2 rounded-md border border-white/5">
+                  <span className="text-xl font-mono font-bold tracking-[0.3em] text-white/80 select-none">
+                    {captcha}
+                  </span>
                 </div>
                 <input
                   type="text"
-                  inputMode="numeric"
                   value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="?"
-                  disabled={isUnlocked || isLoading || !username.trim()}
+                  onChange={(e) => setAnswer(e.target.value.toUpperCase())}
+                  placeholder="CODE"
+                  maxLength={4}
+                  disabled={isUnlocked || isLoading || !username.trim() || !password.trim()}
                   className={cn(
-                    "w-20 bg-white/5 border-2 rounded-xl text-center text-2xl font-mono py-2 transition-all outline-none shadow-inner",
-                    answer && parseInt(answer) !== puzzle.ans ? "border-red-500/50 text-red-400 bg-red-500/10" : "border-white/10 focus:border-neon-blue text-neon-blue focus:bg-neon-blue/5"
+                    "w-24 bg-white/5 border rounded-md text-center text-sm font-mono py-2 transition-all outline-none shadow-inner uppercase",
+                    answer && answer !== captcha ? "border-red-500/50 text-red-400 bg-red-500/10" : "border-white/10 focus:border-neon-blue text-neon-blue focus:bg-neon-blue/5"
                   )}
                 />
               </div>
             </div>
-            {!username.trim() && (
-              <p className="text-xs text-neon-purple text-center mt-3 animate-pulse font-medium">
-                Enter Student ID to activate puzzle
-              </p>
-            )}
-            {username.trim() && !isUnlocked && (
-              <p className="text-xs text-white/40 text-center mt-3 font-medium">
-                Solve the equation to automatically login
-              </p>
-            )}
           </div>
-        </div>
+
+          <button
+            type="submit"
+            disabled={isUnlocked || isLoading || !username.trim() || !password.trim() || !answer.trim()}
+            className="w-full py-3 mt-4 rounded-lg font-bold text-white text-sm tracking-widest uppercase bg-gradient-to-r from-gray-900 to-gray-700 hover:from-black hover:to-gray-800 transition-all shadow-lg border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isCreating ? "Create Account" : "Login"}
+          </button>
+        </form>
 
         {/* Toggle Mode */}
-        <div className="mt-10 pt-6 border-t border-white/5 text-center">
+        <div className="mt-6 pt-4 border-t border-white/5 text-center">
           <button
+            type="button"
             onClick={() => {
               setIsCreating(!isCreating);
               setUsername('');
+              setPassword('');
               setAnswer('');
-              generatePuzzle();
+              generateCaptcha();
             }}
             disabled={isUnlocked || isLoading}
-            className="text-xs font-bold text-white/40 hover:text-neon-blue uppercase tracking-widest transition-colors"
+            className="text-[10px] font-bold text-white/40 hover:text-neon-blue uppercase tracking-widest transition-colors"
           >
             {isCreating ? "Already registered? Login here" : "New student? Create Account"}
           </button>
