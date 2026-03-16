@@ -26,8 +26,8 @@ export default function App() {
   // Check Supabase connection on start
   useEffect(() => {
     const checkConnection = async () => {
-      let url = import.meta.env.VITE_SUPABASE_URL;
-      let key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      let url = import.meta.env.VITE_SUPABASE_URL || 'https://rjfdxxayhjndologkhep.supabase.co';
+      let key = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqZmR4eGF5aGpuZG9sb2draGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NDM1NzMsImV4cCI6MjA4OTIxOTU3M30.UVb4zSVbzdrMAFsbGGXpe0mddZR16WZCTw4LrE9xOjs';
 
       // Check localStorage for manual override
       const storedUrl = localStorage.getItem('manual_supabase_url');
@@ -113,9 +113,14 @@ export default function App() {
         .from('users')
         .select('*')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
-      if (userError && userError.code === 'PGRST116') {
+      if (userError) {
+        console.error('Error fetching user:', userError);
+        throw userError;
+      }
+
+      if (!user) {
         console.log('User not found in Supabase.');
         if (isNewUser) {
           // User doesn't exist, create one
@@ -137,9 +142,6 @@ export default function App() {
           handleLogout();
           return;
         }
-      } else if (userError) {
-        console.error('Error fetching user:', userError);
-        throw userError;
       }
 
       console.log('User fetched successfully:', user);
@@ -206,19 +208,20 @@ export default function App() {
         .from('users')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Supabase login error:', error);
-        if (error.code === 'PGRST116') {
-          alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
-          return false;
-        }
         if (error.message.includes('Failed to fetch')) {
           alert("Connection error: Could not reach Supabase. Check your URL and internet.");
           return false;
         }
         alert(`Login failed: ${error.message}`);
+        return false;
+      }
+
+      if (!data) {
+        alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
         return false;
       }
 
@@ -237,28 +240,26 @@ export default function App() {
   const handleCreateAccount = async (username: string): Promise<boolean> => {
     try {
       console.log('Attempting to create account for:', username);
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking existing user:', checkError);
+        alert(`Error checking account: ${checkError.message}`);
+        return false;
+      }
 
       if (existingUser) {
         alert(`Username "${username}" already exists. Please login instead.`);
         return false;
       }
 
-      const { error } = await supabase
-        .from('users')
-        .insert([{ username, total_study_hours: 0, last_active_date: new Date().toISOString() }]);
-
-      if (error) {
-        console.error('Supabase create account error:', error);
-        alert(`Account creation failed: ${error.message}`);
-        return false;
-      }
-
-      console.log('Account created successfully for:', username);
+      // Instead of inserting here and then calling loadUserData(true) which inserts again,
+      // we just call loadUserData(username, true) and let it handle the creation.
+      console.log('Account does not exist, proceeding to create...');
       setCurrentUser(username);
       localStorage.setItem('hsc_2026_current_user', username);
       await loadUserData(username, true);
