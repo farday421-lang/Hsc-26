@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import yts from "yt-search";
 import path from "path";
+import fs from "fs";
 
 console.log("Starting server process...");
 
@@ -17,12 +18,78 @@ async function startServer() {
   try {
     const app = express();
     const PORT = 3000;
+    
+    app.use(express.json());
 
     console.log("Initializing Express app...");
+
+    const DATA_FILE = path.join(process.cwd(), 'server-data.json');
+
+    const readData = () => {
+      if (!fs.existsSync(DATA_FILE)) return {};
+      try {
+        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+      } catch {
+        return {};
+      }
+    };
+
+    const writeData = (data: any) => {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    };
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.post("/api/register", (req, res) => {
+    const { username, password } = req.body;
+    const data = readData();
+    if (data[username]) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+    data[username] = {
+      password,
+      userData: {
+        username,
+        classes: [],
+        totalStudyHours: 0,
+        lastActiveDate: new Date().toISOString()
+      }
+    };
+    writeData(data);
+    res.json({ success: true, userData: data[username].userData });
+  });
+
+  app.post("/api/login", (req, res) => {
+    const { username, password } = req.body;
+    const data = readData();
+    const user = data[username];
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (user.password && user.password !== password) {
+      return res.status(401).json({ error: "Incorrect password" });
+    }
+    res.json({ success: true, userData: user.userData });
+  });
+
+  app.get("/api/data", (req, res) => {
+    const username = req.headers['x-user'] as string;
+    const data = readData();
+    if (!username || !data[username]) return res.status(404).json({ error: "Not found" });
+    res.json(data[username].userData);
+  });
+
+  app.post("/api/data", (req, res) => {
+    const username = req.headers['x-user'] as string;
+    const userData = req.body;
+    const data = readData();
+    if (!username || !data[username]) return res.status(404).json({ error: "Not found" });
+    data[username].userData = userData;
+    writeData(data);
+    res.json({ success: true });
   });
 
   app.get("/api/search", async (req, res) => {

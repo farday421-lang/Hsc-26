@@ -1,392 +1,105 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Cloud, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { Login } from './components/Login';
-import { DynamicIsland } from './components/DynamicIsland';
 import { Dashboard } from './components/Dashboard';
 import { AddClassModal } from './components/AddClassModal';
-import { FuturisticButton } from './components/FuturisticButton';
+import { DynamicIsland } from './components/DynamicIsland';
 import { FloatingMusicPlayer } from './components/FloatingMusicPlayer';
-import { UserData, ClassItem, Subject, ProgressState } from './types';
-import { supabase } from './lib/supabase';
+import { ClassItem, UserData, Subject } from './types';
+import { motion, AnimatePresence } from 'motion/react';
+import { LogOut, Settings, Bell, Search } from 'lucide-react';
 
-export default function App() {
+function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'search' | 'bookmarks'>('dashboard');
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
 
-  // Check Supabase connection on start
-  useEffect(() => {
-    const checkConnection = async () => {
-      let url = import.meta.env.VITE_SUPABASE_URL || 'https://rjfdxxayhjndologkhep.supabase.co';
-      let key = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqZmR4eGF5aGpuZG9sb2draGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2NDM1NzMsImV4cCI6MjA4OTIxOTU3M30.UVb4zSVbzdrMAFsbGGXpe0mddZR16WZCTw4LrE9xOjs';
-
-      // Check localStorage for manual override
-      const storedUrl = localStorage.getItem('manual_supabase_url');
-      const storedKey = localStorage.getItem('manual_supabase_key');
-      
-      if (storedUrl && storedKey) {
-        url = storedUrl;
-        key = storedKey;
-      }
-
-      if (!url || !key) {
-        setConnectionError("Supabase configuration is missing.");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        // Simple ping test
-        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true }).limit(1);
-        if (error) {
-          console.error('Supabase connection test failed:', error);
-          if (error.code === '42P01') {
-            // Table doesn't exist, but connection is OK
-            console.log('Connection OK, but users table missing.');
-          } else {
-            setConnectionError(`Supabase Error: ${error.message} (Code: ${error.code || 'N/A'})`);
-          }
-        }
-      } catch (err: any) {
-        console.error('Connection test exception:', err);
-        setConnectionError(`Connection failed: ${err.message || 'Unknown network error'}`);
-      } finally {
-        const savedUser = localStorage.getItem('hsc_2026_current_user');
-        if (!savedUser) {
-          setIsLoading(false);
-        }
-      }
-    };
-    checkConnection();
-  }, []);
-
-  const handleSaveManualConfig = () => {
-    if (manualUrl && manualKey) {
-      localStorage.setItem('manual_supabase_url', manualUrl.trim());
-      localStorage.setItem('manual_supabase_key', manualKey.trim());
-      window.location.reload();
-    }
-  };
-
-  const handleClearManualConfig = () => {
-    localStorage.removeItem('manual_supabase_url');
-    localStorage.removeItem('manual_supabase_key');
-    window.location.reload();
-  };
-
-  // Load data on start
+  // Load user session on mount
   useEffect(() => {
     const savedUser = localStorage.getItem('hsc_2026_current_user');
     if (savedUser) {
       setCurrentUser(savedUser);
       loadUserData(savedUser);
-    } else {
-      setIsLoading(false);
     }
   }, []);
 
-  // Persist data to localStorage and Supabase
+  // Save user data whenever it changes
   useEffect(() => {
     if (userData && currentUser) {
-      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-      allData[currentUser] = userData;
-      localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(allData));
-      
-      // Also update total study hours in Supabase if it changed
-      supabase.from('users').update({
-        total_study_hours: userData.totalStudyHours,
-        last_active_date: new Date().toISOString()
-      }).eq('username', currentUser).then(({ error }) => {
-        if (error) console.error('Error updating user stats:', error);
-      });
+      fetch('/api/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user': currentUser
+        },
+        body: JSON.stringify(userData)
+      }).catch(err => console.error('Failed to save data', err));
     }
   }, [userData, currentUser]);
 
-  const loadUserData = async (username: string, isNewUser: boolean = false, password?: string) => {
-    setIsLoading(true);
-    console.log('Loading user data for:', username, 'isNewUser:', isNewUser);
+  const loadUserData = async (username: string) => {
     try {
-      // Fetch user
-      console.log('Fetching user from Supabase...');
-      let { data: user, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username)
-        .maybeSingle();
-
-      if (userError) {
-        console.error('Error fetching user:', userError);
-        throw userError;
-      }
-
-      if (!user) {
-        console.log('User not found in Supabase.');
-        if (isNewUser) {
-          // User doesn't exist, create one
-          console.log('Creating new user in Supabase...');
-          const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert([{ 
-              username, 
-              password, 
-              total_study_hours: 0, 
-              last_active_date: new Date().toISOString() 
-            }])
-            .select()
-            .single();
-          
-          if (createError) {
-            console.error('Error creating new user:', createError);
-            throw createError;
-          }
-          user = newUser;
-        } else {
-          console.log('User not found and not new, logging out.');
-          handleLogout();
-          return;
-        }
-      }
-
-      console.log('User fetched successfully:', user);
-
-      // Fetch classes
-      console.log('Fetching classes from Supabase...');
-      const { data: classes, error: classesError } = await supabase
-        .from('classes')
-        .select('*')
-        .eq('username', username)
-        .order('date_added', { ascending: false });
-
-      if (classesError) {
-        console.error('Error fetching classes:', classesError);
-        throw classesError;
-      }
-
-      console.log('Classes fetched successfully:', classes?.length || 0, 'classes found');
-
-      // Map snake_case to camelCase
-      const formattedClasses: ClassItem[] = (classes || []).map(c => ({
-        id: c.id,
-        title: c.title,
-        subject: c.subject as Subject,
-        youtubeUrl: c.youtube_url,
-        pdfUrl: c.pdf_url,
-        dateAdded: c.date_added,
-        progress: c.progress as ProgressState,
-        isBookmarked: c.is_bookmarked,
-        lastWatchedAt: c.last_watched_at,
-        lastPosition: c.last_position
-      }));
-
-      // Merge with localStorage data to prevent data loss if Supabase insert failed
-      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-      const localUserData = allData[username] || { classes: [] };
-      
-      const mergedClasses = [...formattedClasses];
-      const classesToSync: any[] = [];
-      
-      // Add any classes from localStorage that aren't in Supabase
-      localUserData.classes.forEach((localClass: ClassItem) => {
-        if (!mergedClasses.some(c => c.id === localClass.id)) {
-          mergedClasses.push(localClass);
-          classesToSync.push({
-            id: localClass.id,
-            username: username,
-            title: localClass.title,
-            subject: localClass.subject,
-            youtube_url: localClass.youtubeUrl,
-            pdf_url: localClass.pdfUrl,
-            date_added: localClass.dateAdded,
-            progress: localClass.progress,
-            is_bookmarked: localClass.isBookmarked,
-            last_watched_at: localClass.lastWatchedAt,
-            last_position: localClass.lastPosition
-          });
-        }
+      const res = await fetch('/api/data', {
+        headers: { 'x-user': username }
       });
-      
-      // Sync to Supabase in the background
-      if (classesToSync.length > 0) {
-        console.log('Syncing local classes to Supabase:', classesToSync.length);
-        supabase.from('classes').insert(classesToSync).then(({ error }) => {
-          if (error) console.error('Error syncing classes:', error);
-          else console.log('Successfully synced local classes to Supabase');
-        });
-      }
-      
-      // Sort by date added
-      mergedClasses.sort((a, b) => new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime());
-
-      setUserData({
-        username: user.username,
-        totalStudyHours: user.total_study_hours || 0,
-        lastActiveDate: user.last_active_date,
-        classes: mergedClasses
-      });
-    } catch (error) {
-      console.error('Error loading user data:', error);
-      if (isNewUser) {
-        throw error;
-      }
-      // Fallback to local storage if Supabase fails
-      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-      if (allData[username]) {
-        setUserData(allData[username]);
+      if (res.ok) {
+        const data = await res.json();
+        setUserData(data);
       } else {
-        // Initialize new user data if nothing exists
-        setUserData({
-          username,
-          totalStudyHours: 0,
-          lastActiveDate: new Date().toISOString(),
-          classes: []
-        });
+        handleLogout();
       }
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      console.error('Failed to load user data', err);
+      handleLogout();
     }
   };
 
   const handleLogin = async (username: string, password?: string): Promise<boolean> => {
     try {
-      console.log('Attempting login for:', username);
-      const { data, error } = await supabase
-        .from('users')
-        .select('username, password')
-        .eq('username', username)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Supabase login error:', error);
-        if (error.message.includes('Failed to fetch')) {
-          alert("Connection error: Could not reach Supabase. Check your URL and internet.");
-          return false;
-        }
-        alert(`Login failed: ${error.message}`);
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCurrentUser(username);
+        localStorage.setItem('hsc_2026_current_user', username);
+        setUserData(data.userData);
+        return true;
+      } else {
+        alert(data.error || "Login failed");
         return false;
       }
-
-      if (!data) {
-        // Check local storage as fallback
-        const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-        if (allData[username]) {
-          if (allData[username].password && allData[username].password !== password) {
-            alert("Incorrect password!");
-            return false;
-          }
-          console.log('User found in local storage fallback, migrating to Supabase:', username);
-          
-          // Migrate user to Supabase
-          const { error: migrateError } = await supabase.from('users').insert([{ 
-            username, 
-            password,
-            total_study_hours: allData[username].totalStudyHours || 0, 
-            last_active_date: new Date().toISOString() 
-          }]);
-          
-          if (migrateError) {
-            console.error('Migration failed:', migrateError);
-            alert(`Failed to migrate your offline account to the database: ${migrateError.message}`);
-            return false;
-          }
-          
-          // Migrate classes
-          const classesToMigrate = allData[username].classes || [];
-          if (classesToMigrate.length > 0) {
-            const formattedClasses = classesToMigrate.map((c: any) => ({
-              id: c.id,
-              username: username,
-              title: c.title,
-              subject: c.subject,
-              youtube_url: c.youtubeUrl,
-              pdf_url: c.pdfUrl,
-              date_added: c.dateAdded,
-              progress: c.progress,
-              is_bookmarked: c.isBookmarked,
-              last_watched_at: c.lastWatchedAt,
-              last_position: c.lastPosition
-            }));
-            
-            await supabase.from('classes').insert(formattedClasses);
-          }
-          
-          alert("Your offline account has been successfully migrated to the database!");
-        } else {
-          alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
-          return false;
-        }
-      } else {
-        // User exists in Supabase, check password
-        if (data.password && data.password !== password) {
-          alert("Incorrect password!");
-          return false;
-        }
-        // If they don't have a password set yet (legacy user), set it now
-        if (!data.password && password) {
-          await supabase.from('users').update({ password }).eq('username', username);
-        }
-      }
-
-      console.log('Login successful for:', username);
-      setCurrentUser(username);
-      localStorage.setItem('hsc_2026_current_user', username);
-      await loadUserData(username);
-      return true;
-    } catch (err: any) {
-      console.error("Login exception:", err);
-      alert(`An unexpected error occurred: ${err.message || 'Unknown error'}`);
+    } catch (err) {
+      console.error('Login error', err);
+      alert("Network error during login");
       return false;
     }
   };
 
   const handleCreateAccount = async (username: string, password?: string): Promise<boolean> => {
     try {
-      console.log('Attempting to create account for:', username);
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username', username)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error checking existing user:', checkError);
-        throw new Error(`Database connection failed: ${checkError.message}`);
-      }
-
-      if (existingUser) {
-        alert(`Username "${username}" already exists. Please login instead.`);
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCurrentUser(username);
+        localStorage.setItem('hsc_2026_current_user', username);
+        setUserData(data.userData);
+        return true;
+      } else {
+        alert(data.error || "Registration failed");
         return false;
       }
-
-      // Also check local storage to prevent overwriting an offline account
-      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-      if (allData[username]) {
-        alert(`Username "${username}" already exists locally. Please login instead.`);
-        return false;
-      }
-
-      // Instead of inserting here and then calling loadUserData(true) which inserts again,
-      // we just call loadUserData(username, true) and let it handle the creation.
-      console.log('Account does not exist, proceeding to create...');
-      
-      await loadUserData(username, true, password);
-      
-      // Only set local state AFTER Supabase creation succeeds
-      setCurrentUser(username);
-      localStorage.setItem('hsc_2026_current_user', username);
-      
-      // Save password locally
-      const newData = { ...allData, [username]: { password, totalStudyHours: 0, lastActiveDate: new Date().toISOString(), classes: [] } };
-      localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(newData));
-
-      return true;
-    } catch (err: any) {
-      console.error("Create account exception:", err);
-      alert(`Failed to create account: ${err.message || 'Unknown error'}`);
+    } catch (err) {
+      console.error('Registration error', err);
+      alert("Network error during registration");
       return false;
     }
   };
@@ -397,8 +110,8 @@ export default function App() {
     localStorage.removeItem('hsc_2026_current_user');
   };
 
-  const handleAddClass = async (data: { title: string; subject: Subject; youtubeUrl: string; pdfUrl?: string }) => {
-    if (!userData || !currentUser) return;
+  const handleAddClass = (data: { title: string; subject: Subject; youtubeUrl: string; pdfUrl?: string }) => {
+    if (!userData) return;
 
     const newClass: ClassItem = {
       id: Math.random().toString(36).substr(2, 9),
@@ -406,304 +119,120 @@ export default function App() {
       dateAdded: new Date().toISOString(),
       progress: 'Not Started',
       isBookmarked: false,
+      lastPosition: 0
     };
 
-    // Optimistic UI update
     setUserData({
       ...userData,
-      classes: [newClass, ...userData.classes],
+      classes: [newClass, ...userData.classes]
     });
-
-    setIsSaving(true);
-    try {
-      console.log('Adding class to Supabase:', newClass);
-      const { error } = await supabase.from('classes').insert([{
-        id: newClass.id,
-        username: currentUser,
-        title: newClass.title,
-        subject: newClass.subject,
-        youtube_url: newClass.youtubeUrl,
-        pdf_url: newClass.pdfUrl,
-        date_added: newClass.dateAdded,
-        progress: newClass.progress,
-        is_bookmarked: newClass.isBookmarked
-      }]);
-      
-      if (error) {
-        console.error('Supabase insert error:', error);
-        alert(`Failed to save to database: ${error.message}. Data is only saved locally.`);
-      } else {
-        console.log('Class added successfully');
-      }
-    } catch (error: any) {
-      console.error('Error adding class:', error);
-      alert(`Network error: ${error.message}. Data is only saved locally.`);
-    } finally {
-      setTimeout(() => setIsSaving(false), 1000);
-    }
   };
 
-  const handleUpdateClass = async (id: string, updates: Partial<ClassItem>) => {
-    if (!userData || !currentUser) return;
+  const handleUpdateClass = (id: string, updates: Partial<ClassItem>) => {
+    if (!userData) return;
 
-    // Optimistic UI update
-    const updatedClasses = userData.classes.map(c => 
-      c.id === id ? { ...c, ...updates } : c
-    );
-    setUserData({ ...userData, classes: updatedClasses });
-
-    setIsSaving(true);
-    try {
-      const dbUpdates: any = {};
-      if (updates.title !== undefined) dbUpdates.title = updates.title;
-      if (updates.subject !== undefined) dbUpdates.subject = updates.subject;
-      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
-      if (updates.pdfUrl !== undefined) dbUpdates.pdf_url = updates.pdfUrl;
-      if (updates.progress !== undefined) dbUpdates.progress = updates.progress;
-      if (updates.isBookmarked !== undefined) dbUpdates.is_bookmarked = updates.isBookmarked;
-      if (updates.lastWatchedAt !== undefined) dbUpdates.last_watched_at = updates.lastWatchedAt;
-      if (updates.lastPosition !== undefined) dbUpdates.last_position = updates.lastPosition;
-
-      const { error } = await supabase.from('classes').update(dbUpdates).eq('id', id);
-      if (error) {
-        console.error('Supabase update error:', error);
-      }
-    } catch (error: any) {
-      console.error('Error updating class:', error);
-    } finally {
-      setTimeout(() => setIsSaving(false), 1000);
-    }
+    setUserData({
+      ...userData,
+      classes: userData.classes.map(c => 
+        c.id === id ? { ...c, ...updates } : c
+      )
+    });
   };
 
-  const handleDeleteClass = async (id: string) => {
-    if (!userData || !currentUser) return;
-
-    // Optimistic UI update
-    const updatedClasses = userData.classes.filter(c => c.id !== id);
-    setUserData({ ...userData, classes: updatedClasses });
-
-    setIsSaving(true);
-    try {
-      const { error } = await supabase.from('classes').delete().eq('id', id);
-      if (error) {
-        console.error('Supabase delete error:', error);
-      }
-    } catch (error: any) {
-      console.error('Error deleting class:', error);
-    } finally {
-      setTimeout(() => setIsSaving(false), 1000);
+  const handleDeleteClass = (id: string) => {
+    if (!userData) return;
+    if (window.confirm('Are you sure you want to delete this class?')) {
+      setUserData({
+        ...userData,
+        classes: userData.classes.filter(c => c.id !== id)
+      });
     }
   };
-
-  const stats = useMemo(() => {
-    if (!userData) return { totalStudyHours: 0, classesCompletedToday: 0, totalClasses: 0, completedPercentage: 0 };
-    
-    const total = userData.classes.length;
-    const completed = userData.classes.filter(c => c.progress === 'Completed').length;
-    const today = new Date().toDateString();
-    const completedToday = userData.classes.filter(c => 
-      c.progress === 'Completed' && new Date(c.dateAdded).toDateString() === today
-    ).length;
-
-    return {
-      totalStudyHours: userData.totalStudyHours,
-      classesCompletedToday: completedToday,
-      totalClasses: total,
-      completedPercentage: total > 0 ? Math.round((completed / total) * 100) : 0,
-    };
-  }, [userData]);
-
-  const handleRecoverPassword = async (username: string): Promise<string | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('password')
-        .eq('username', username)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error recovering password:', error);
-      }
-      
-      if (data && data.password) {
-        return data.password;
-      }
-      
-      // Fallback to local storage
-      const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-      if (allData[username] && allData[username].password) {
-        return allData[username].password;
-      }
-      
-      return null;
-    } catch (err) {
-      console.error('Exception recovering password:', err);
-      return null;
-    }
-  };
-
-  if (connectionError) {
-    return (
-      <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
-          <Cloud className="w-8 h-8 text-red-500" />
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Configuration Missing</h2>
-        <p className="text-white/60 max-w-md mb-8">
-          {connectionError}
-        </p>
-        <div className="glass-card p-4 text-left text-xs font-mono text-red-400 space-y-2">
-          <p>1. Open the Settings menu (gear icon)</p>
-          <p>2. Go to Environment Variables</p>
-          <p>3. Add VITE_SUPABASE_URL {"&"} VITE_SUPABASE_ANON_KEY</p>
-          <p>4. Refresh the page or click below</p>
-        </div>
-
-        <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10 text-left w-full max-w-md">
-          <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mb-2">Debug Info</p>
-          <div className="space-y-1 font-mono text-[10px]">
-            <p className="text-white/40">URL: <span className={import.meta.env.VITE_SUPABASE_URL && !import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "text-green-400" : "text-red-400"}>
-              {localStorage.getItem('manual_supabase_url') ? 
-                `${localStorage.getItem('manual_supabase_url')?.substring(0, 15)}...` : 
-                (import.meta.env.VITE_SUPABASE_URL ? (import.meta.env.VITE_SUPABASE_URL.includes('placeholder') ? "Placeholder" : "Detected") : "Missing")}
-            </span></p>
-            <p className="text-white/40">Key: <span className={import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "text-green-400" : "text-red-400"}>
-              {localStorage.getItem('manual_supabase_key') ? 
-                `${localStorage.getItem('manual_supabase_key')?.substring(0, 10)}...` : 
-                (import.meta.env.VITE_SUPABASE_ANON_KEY ? (import.meta.env.VITE_SUPABASE_ANON_KEY.includes('placeholder') ? "Placeholder" : "Detected") : "Missing")}
-            </span></p>
-            {localStorage.getItem('manual_supabase_url') && (
-              <p className="text-neon-blue mt-2">Manual Override Active</p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 mt-8 w-full max-w-md">
-          <FuturisticButton 
-            onClick={() => window.location.reload()}
-            variant="outline"
-            showAnimatedBorder
-          >
-            Retry Connection
-          </FuturisticButton>
-        </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-brand-black flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 text-neon-blue animate-spin mb-4" />
-        <p className="text-neon-blue font-mono uppercase tracking-widest text-sm animate-pulse">Connecting to Supabase...</p>
-      </div>
-    );
-  }
 
   if (!currentUser || !userData) {
-    return (
-      <Login 
-        onLogin={handleLogin} 
-        onCreateAccount={handleCreateAccount} 
-        onRecoverPassword={handleRecoverPassword} 
-      />
-    );
+    return <Login onLogin={handleLogin} onCreateAccount={handleCreateAccount} onRecoverPassword={async () => null} />;
   }
 
   return (
-    <div className="min-h-screen bg-brand-black selection:bg-neon-blue/30">
-      <DynamicIsland 
-        stats={stats} 
-        onNavigate={(view) => setCurrentView(view)} 
-        onLogout={handleLogout}
-      />
+    <div className="min-h-screen bg-brand-black text-white font-sans selection:bg-neon-blue/30 selection:text-neon-blue overflow-x-hidden">
+      {/* Background Effects */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-neon-blue/10 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-neon-purple/10 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+      </div>
 
-      <main className="max-w-7xl mx-auto px-6 pt-32 pb-40">
-        <header className="mb-12 flex items-end justify-between">
-          <div className="flex items-center gap-6">
-            <div className="space-y-2">
-              <motion.h1 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="text-4xl font-bold tracking-tight"
-              >
-                Hello, <span className="text-neon-blue">{userData.username}</span>
-              </motion.h1>
-              <p className="text-white/40 font-medium">Ready to conquer your HSC 2026 goals?</p>
-            </div>
-            
-            <AnimatePresence>
-              {isSaving && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8, x: -10 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.8, x: -10 }}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-neon-blue/10 rounded-full border border-neon-blue/20 mb-1"
-                >
-                  <Cloud className="w-3.5 h-3.5 text-neon-blue animate-pulse" />
-                  <span className="text-[10px] font-bold text-neon-blue uppercase tracking-widest">Syncing to Cloud</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <FuturisticButton 
-            variant="ghost"
-            onClick={handleLogout}
-            className="px-2 py-1"
-          >
-            Logout Session
-          </FuturisticButton>
-        </header>
-
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentView}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {currentView === 'dashboard' && (
-              <Dashboard 
-                userData={userData}
-                onUpdateClass={handleUpdateClass}
-                onDeleteClass={handleDeleteClass}
-                onAddClass={() => setIsAddModalOpen(true)}
-              />
-            )}
-            {currentView === 'search' && (
-              <div className="text-center py-20">
-                <h2 className="text-2xl font-bold text-white/40">Search coming soon</h2>
-                <p className="text-white/20">Use the dashboard search for now!</p>
-              </div>
-            )}
-            {currentView === 'bookmarks' && (
-              <Dashboard 
-                userData={{
-                  ...userData,
-                  classes: userData.classes.filter(c => c.isBookmarked)
-                }}
-                onUpdateClass={handleUpdateClass}
-                onDeleteClass={handleDeleteClass}
-                onAddClass={() => setIsAddModalOpen(true)}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </main>
-
-      <AddClassModal 
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleAddClass}
-      />
-
+      <DynamicIsland />
       <FloatingMusicPlayer />
 
-      {/* Footer Branding */}
-      <footer className="py-12 border-t border-white/5 text-center">
-        <p className="text-[10px] font-bold text-white/10 uppercase tracking-[0.4em]">HSC 2026 • Futuristic Learning Hub</p>
-      </footer>
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-brand-black/80 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative group cursor-pointer">
+              <div className="absolute inset-0 bg-gradient-to-r from-neon-blue to-neon-purple rounded-xl blur opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative bg-brand-black border border-white/10 p-3 rounded-xl">
+                <div className="w-6 h-6 bg-gradient-to-br from-neon-blue to-neon-purple rounded-md shadow-[0_0_15px_rgba(0,242,255,0.5)]" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                HSC '26 Hub
+              </h1>
+              <p className="text-[10px] font-bold text-neon-blue uppercase tracking-widest">
+                Welcome back, {currentUser}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <button className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full transition-all duration-300 group relative">
+              <Bell className="w-5 h-5 text-white/60 group-hover:text-white" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-neon-blue rounded-full shadow-[0_0_10px_rgba(0,242,255,1)]" />
+            </button>
+            <button className="p-2.5 bg-white/5 hover:bg-white/10 rounded-full transition-all duration-300 group">
+              <Settings className="w-5 h-5 text-white/60 group-hover:text-white" />
+            </button>
+            <div className="w-px h-8 bg-white/10 mx-2" />
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 border border-red-500/20 hover:border-red-500/40"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-24">
+        <Dashboard 
+          userData={userData} 
+          onUpdateClass={handleUpdateClass} 
+          onDeleteClass={handleDeleteClass}
+          onAddClass={() => setIsAddModalOpen(true)}
+        />
+      </main>
+
+      <AddClassModal
+        isOpen={isAddModalOpen || !!editingClass}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setEditingClass(null);
+        }}
+        onAdd={(data) => {
+          if (editingClass) {
+            handleUpdateClass(editingClass.id, data);
+            setEditingClass(null);
+          } else {
+            handleAddClass(data);
+          }
+          setIsAddModalOpen(false);
+        }}
+        editingClass={editingClass || undefined}
+      />
     </div>
   );
 }
+
+export default App;
