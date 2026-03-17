@@ -27,15 +27,26 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
   const [isFetchingTitle, setIsFetchingTitle] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
 
+  const extractYoutubeId = (url: string) => {
+    if (!url) return null;
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+    const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\/shorts\/)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    if (match && match[2].length === 11) {
+      return match[2];
+    }
+    return null;
+  };
+
   const handleYoutubeUrlChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
     setYoutubeUrl(url);
 
-    const ytRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
-    if (ytRegex.test(url)) {
+    const videoId = extractYoutubeId(url);
+    if (videoId) {
       setIsFetchingTitle(true);
       try {
-        const response = await fetch(`https://noembed.com/embed?dataType=json&url=${encodeURIComponent(url)}`);
+        const response = await fetch(`https://noembed.com/embed?dataType=json&url=https://www.youtube.com/watch?v=${videoId}`);
         const data = await response.json();
         if (data && data.title) {
           setTitle(data.title);
@@ -209,7 +220,7 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
               </div>
 
               <div className="space-y-2 group">
-                <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">Video Link (YouTube or Direct)</label>
+                <label className="text-[10px] font-bold text-white/40 group-focus-within:text-neon-blue uppercase tracking-widest ml-1 transition-colors">YouTube Link</label>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-red-500 transition-colors">
                     {isFetchingTitle ? (
@@ -223,21 +234,26 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                     type="url"
                     value={youtubeUrl}
                     onChange={handleYoutubeUrlChange}
-                    placeholder="https://youtube.com/... or https://.../video.mp4"
+                    placeholder="https://youtube.com/..."
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-red-500/50 focus:bg-red-500/5 focus:ring-1 focus:ring-red-500/50 transition-all text-white placeholder:text-white/20 font-medium"
                   />
                 </div>
                 {youtubeUrl && (
                   <div className="mt-3 aspect-video w-full rounded-xl overflow-hidden bg-brand-black border border-white/10 relative">
-                    <ReactPlayer
-                      url={youtubeUrl}
-                      width="100%"
-                      height="100%"
-                      controls={true}
-                      light={true}
-                      style={{ position: 'absolute', top: 0, left: 0 }}
-                      className="w-full h-full"
-                    />
+                    {extractYoutubeId(youtubeUrl) ? (
+                      <iframe
+                        src={`https://www.youtube-nocookie.com/embed/${extractYoutubeId(youtubeUrl)}`}
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="w-full h-full absolute top-0 left-0"
+                      ></iframe>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white/20 bg-white/5 absolute top-0 left-0 text-xs">
+                        Invalid YouTube URL or ID
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

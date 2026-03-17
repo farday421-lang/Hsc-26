@@ -1,6 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import ReactPlayer from 'react-player';
 import { FileText, CheckCircle2, Circle, Clock, Bookmark, BookmarkCheck, Trash2, ExternalLink, Sigma } from 'lucide-react';
 import { ClassItem, ProgressState } from '../types';
 import { FuturisticButton } from './FuturisticButton';
@@ -19,30 +18,21 @@ interface ClassCardProps {
 export const ClassCard: React.FC<ClassCardProps> = ({ item, onUpdateProgress, onToggleBookmark, onDelete, onUpdatePosition }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isFormulaModalOpen, setIsFormulaModalOpen] = useState(false);
-  const playerRef = useRef<ReactPlayer>(null);
-
-  const handleReady = () => {
-    if (item.lastPosition && playerRef.current) {
-      playerRef.current.seekTo(item.lastPosition, 'seconds');
-    }
-  };
-
-  const handlePlay = () => {
-    if (item.progress === 'Not Started') {
-      onUpdateProgress(item.id, 'Half Completed');
-    }
-  };
-
-  const handleProgress = (state: { playedSeconds: number }) => {
-    onUpdatePosition(item.id, state.playedSeconds);
-  };
-
-  const handleEnded = () => {
-    onUpdateProgress(item.id, 'Completed');
-    onUpdatePosition(item.id, 0);
-  };
 
   const progressPercentage = item.progress === 'Completed' ? 100 : item.progress === 'Half Completed' ? 50 : 0;
+
+  const extractYoutubeId = (url: string) => {
+    if (!url) return null;
+    if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
+    const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|\/shorts\/)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    if (match && match[2].length === 11) {
+      return match[2];
+    }
+    return null;
+  };
+
+  const videoId = extractYoutubeId(item.youtubeUrl);
 
   return (
     <motion.div
@@ -56,22 +46,15 @@ export const ClassCard: React.FC<ClassCardProps> = ({ item, onUpdateProgress, on
     >
       {/* Video Player Section */}
       <div className="aspect-video w-full bg-brand-black relative overflow-hidden">
-        {item.youtubeUrl ? (
-          <ReactPlayer
-            ref={playerRef}
-            url={item.youtubeUrl}
-            width="100%"
-            height="100%"
-            controls={true}
-            light={true}
-            onReady={handleReady}
-            onPlay={handlePlay}
-            onProgress={handleProgress}
-            onEnded={handleEnded}
-            progressInterval={5000}
-            style={{ position: 'absolute', top: 0, left: 0 }}
-            className="w-full h-full opacity-80 group-hover:opacity-100 transition-opacity duration-500"
-          />
+        {videoId ? (
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="w-full h-full absolute top-0 left-0"
+          ></iframe>
         ) : (
           <div className="w-full h-full flex items-center justify-center text-white/20 bg-white/5 absolute top-0 left-0">
             Invalid Video URL
@@ -123,7 +106,13 @@ export const ClassCard: React.FC<ClassCardProps> = ({ item, onUpdateProgress, on
             <Clock className="w-3.5 h-3.5 text-white/30" />
             <span>{new Date(item.dateAdded).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <button 
+            onClick={() => {
+              const nextProgress = item.progress === 'Not Started' ? 'Half Completed' : item.progress === 'Half Completed' ? 'Completed' : 'Not Started';
+              onUpdateProgress(item.id, nextProgress);
+            }}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer"
+          >
             {item.progress === 'Completed' ? (
               <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
             ) : item.progress === 'Half Completed' ? (
@@ -138,7 +127,7 @@ export const ClassCard: React.FC<ClassCardProps> = ({ item, onUpdateProgress, on
             )}>
               {item.progress}
             </span>
-          </div>
+          </button>
         </div>
 
         <div className="pt-4 mt-auto flex flex-wrap items-center gap-2 border-t border-white/5">
