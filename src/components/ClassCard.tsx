@@ -63,15 +63,17 @@ export const ClassCard: React.FC<ClassCardProps> = ({ item, onUpdateProgress, on
             width="100%"
             height="100%"
             controls={true}
+            light={true}
             onReady={handleReady}
             onPlay={handlePlay}
             onProgress={handleProgress}
             onEnded={handleEnded}
             progressInterval={5000}
-            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+            style={{ position: 'absolute', top: 0, left: 0 }}
+            className="w-full h-full opacity-80 group-hover:opacity-100 transition-opacity duration-500"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-white/20 bg-white/5">
+          <div className="w-full h-full flex items-center justify-center text-white/20 bg-white/5 absolute top-0 left-0">
             Invalid Video URL
           </div>
         )}

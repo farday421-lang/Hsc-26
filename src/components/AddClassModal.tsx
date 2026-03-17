@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactPlayer from 'react-player';
 import { Plus, X, Youtube, FileText, Tag, Send, UploadCloud, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { Subject } from '../types';
 import { FuturisticButton } from './FuturisticButton';
@@ -226,6 +227,19 @@ export const AddClassModal: React.FC<AddClassModalProps> = ({ isOpen, onClose, o
                     className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3.5 focus:outline-none focus:border-red-500/50 focus:bg-red-500/5 focus:ring-1 focus:ring-red-500/50 transition-all text-white placeholder:text-white/20 font-medium"
                   />
                 </div>
+                {youtubeUrl && (
+                  <div className="mt-3 aspect-video w-full rounded-xl overflow-hidden bg-brand-black border border-white/10 relative">
+                    <ReactPlayer
+                      url={youtubeUrl}
+                      width="100%"
+                      height="100%"
+                      controls={true}
+                      light={true}
+                      style={{ position: 'absolute', top: 0, left: 0 }}
+                      className="w-full h-full"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
