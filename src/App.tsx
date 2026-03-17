@@ -19,10 +19,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
-  const [showManualConfig, setShowManualConfig] = useState(false);
-  const [manualUrl, setManualUrl] = useState('');
-  const [manualKey, setManualKey] = useState('');
-
   // Check Supabase connection on start
   useEffect(() => {
     const checkConnection = async () => {
@@ -38,8 +34,8 @@ export default function App() {
         key = storedKey;
       }
 
-      if (!url || url.includes('placeholder') || !key || key.includes('placeholder')) {
-        setConnectionError("Supabase configuration is missing. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in the Settings -> Environment Variables menu.");
+      if (!url || !key) {
+        setConnectionError("Supabase configuration is missing.");
         setIsLoading(false);
         return;
       }
@@ -135,7 +131,12 @@ export default function App() {
           console.log('Creating new user in Supabase...');
           const { data: newUser, error: createError } = await supabase
             .from('users')
-            .insert([{ username, password, total_study_hours: 0, last_active_date: new Date().toISOString() }])
+            .insert([{ 
+              username, 
+              password, 
+              total_study_hours: 0, 
+              last_active_date: new Date().toISOString() 
+            }])
             .select()
             .single();
           
@@ -145,20 +146,9 @@ export default function App() {
           }
           user = newUser;
         } else {
-          // If user not found in Supabase, check local storage before logging out
-          const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-          if (allData[username]) {
-            console.log('User not found in Supabase, but exists locally. Proceeding with local data.');
-            user = {
-              username,
-              total_study_hours: allData[username].totalStudyHours || 0,
-              last_active_date: allData[username].lastActiveDate || new Date().toISOString()
-            };
-          } else {
-            console.log('User not found and not new, logging out.');
-            handleLogout();
-            return;
-          }
+          console.log('User not found and not new, logging out.');
+          handleLogout();
+          return;
         }
       }
 
@@ -240,6 +230,9 @@ export default function App() {
       });
     } catch (error) {
       console.error('Error loading user data:', error);
+      if (isNewUser) {
+        throw error;
+      }
       // Fallback to local storage if Supabase fails
       const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
       if (allData[username]) {
@@ -269,21 +262,6 @@ export default function App() {
 
       if (error) {
         console.error('Supabase login error:', error);
-        
-        // Check local storage as fallback for offline/error cases
-        const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-        if (allData[username]) {
-          if (allData[username].password && allData[username].password !== password) {
-            alert("Incorrect password!");
-            return false;
-          }
-          console.log('User found in local storage fallback (offline mode):', username);
-          setCurrentUser(username);
-          localStorage.setItem('hsc_2026_current_user', username);
-          await loadUserData(username);
-          return true;
-        }
-
         if (error.message.includes('Failed to fetch')) {
           alert("Connection error: Could not reach Supabase. Check your URL and internet.");
           return false;
@@ -300,16 +278,43 @@ export default function App() {
             alert("Incorrect password!");
             return false;
           }
-          console.log('User found in local storage fallback:', username);
-          // Try to create the user in Supabase in the background since they exist locally
-          supabase.from('users').insert([{ 
+          console.log('User found in local storage fallback, migrating to Supabase:', username);
+          
+          // Migrate user to Supabase
+          const { error: migrateError } = await supabase.from('users').insert([{ 
             username, 
             password,
             total_study_hours: allData[username].totalStudyHours || 0, 
             last_active_date: new Date().toISOString() 
-          }]).then(({ error }) => {
-            if (error) console.error('Background sync user creation failed:', error);
-          });
+          }]);
+          
+          if (migrateError) {
+            console.error('Migration failed:', migrateError);
+            alert(`Failed to migrate your offline account to the database: ${migrateError.message}`);
+            return false;
+          }
+          
+          // Migrate classes
+          const classesToMigrate = allData[username].classes || [];
+          if (classesToMigrate.length > 0) {
+            const formattedClasses = classesToMigrate.map((c: any) => ({
+              id: c.id,
+              username: username,
+              title: c.title,
+              subject: c.subject,
+              youtube_url: c.youtubeUrl,
+              pdf_url: c.pdfUrl,
+              date_added: c.dateAdded,
+              progress: c.progress,
+              is_bookmarked: c.isBookmarked,
+              last_watched_at: c.lastWatchedAt,
+              last_position: c.lastPosition
+            }));
+            
+            await supabase.from('classes').insert(formattedClasses);
+          }
+          
+          alert("Your offline account has been successfully migrated to the database!");
         } else {
           alert(`Account "${username}" not found. Please click "Create Account" below if you haven't registered yet.`);
           return false;
@@ -349,25 +354,7 @@ export default function App() {
 
       if (checkError) {
         console.error('Error checking existing user:', checkError);
-        
-        // Check local storage as fallback
-        const allData = JSON.parse(localStorage.getItem('hsc_2026_study_hub_data') || '{}');
-        if (allData[username]) {
-          alert(`Username "${username}" already exists locally. Please login instead.`);
-          return false;
-        }
-
-        // Allow offline creation
-        console.log('Account does not exist locally, proceeding to create offline...');
-        setCurrentUser(username);
-        localStorage.setItem('hsc_2026_current_user', username);
-        
-        // Save password locally too
-        const newData = { ...allData, [username]: { password, totalStudyHours: 0, lastActiveDate: new Date().toISOString(), classes: [] } };
-        localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(newData));
-
-        await loadUserData(username, true, password);
-        return true;
+        throw new Error(`Database connection failed: ${checkError.message}`);
       }
 
       if (existingUser) {
@@ -385,6 +372,10 @@ export default function App() {
       // Instead of inserting here and then calling loadUserData(true) which inserts again,
       // we just call loadUserData(username, true) and let it handle the creation.
       console.log('Account does not exist, proceeding to create...');
+      
+      await loadUserData(username, true, password);
+      
+      // Only set local state AFTER Supabase creation succeeds
       setCurrentUser(username);
       localStorage.setItem('hsc_2026_current_user', username);
       
@@ -392,7 +383,6 @@ export default function App() {
       const newData = { ...allData, [username]: { password, totalStudyHours: 0, lastActiveDate: new Date().toISOString(), classes: [] } };
       localStorage.setItem('hsc_2026_study_hub_data', JSON.stringify(newData));
 
-      await loadUserData(username, true, password);
       return true;
     } catch (err: any) {
       console.error("Create account exception:", err);
@@ -441,13 +431,13 @@ export default function App() {
       
       if (error) {
         console.error('Supabase insert error:', error);
-        // Silently fail and rely on local storage fallback
+        alert(`Failed to save to database: ${error.message}. Data is only saved locally.`);
       } else {
         console.log('Class added successfully');
       }
     } catch (error: any) {
       console.error('Error adding class:', error);
-      // Silently fail and rely on local storage fallback
+      alert(`Network error: ${error.message}. Data is only saved locally.`);
     } finally {
       setTimeout(() => setIsSaving(false), 1000);
     }
@@ -474,8 +464,11 @@ export default function App() {
       if (updates.lastWatchedAt !== undefined) dbUpdates.last_watched_at = updates.lastWatchedAt;
       if (updates.lastPosition !== undefined) dbUpdates.last_position = updates.lastPosition;
 
-      await supabase.from('classes').update(dbUpdates).eq('id', id);
-    } catch (error) {
+      const { error } = await supabase.from('classes').update(dbUpdates).eq('id', id);
+      if (error) {
+        console.error('Supabase update error:', error);
+      }
+    } catch (error: any) {
       console.error('Error updating class:', error);
     } finally {
       setTimeout(() => setIsSaving(false), 1000);
@@ -491,8 +484,11 @@ export default function App() {
 
     setIsSaving(true);
     try {
-      await supabase.from('classes').delete().eq('id', id);
-    } catch (error) {
+      const { error } = await supabase.from('classes').delete().eq('id', id);
+      if (error) {
+        console.error('Supabase delete error:', error);
+      }
+    } catch (error: any) {
       console.error('Error deleting class:', error);
     } finally {
       setTimeout(() => setIsSaving(false), 1000);
@@ -590,58 +586,6 @@ export default function App() {
           >
             Retry Connection
           </FuturisticButton>
-
-          <button 
-            onClick={() => setShowManualConfig(!showManualConfig)}
-            className="text-white/40 text-xs hover:text-white/60 transition-colors"
-          >
-            {showManualConfig ? "Hide Manual Config" : "Try Manual Configuration"}
-          </button>
-
-          {showManualConfig && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card p-6 space-y-4 mt-2"
-            >
-              <div className="space-y-2">
-                <label className="text-[10px] text-white/40 uppercase tracking-wider">Supabase URL</label>
-                <input 
-                  type="text"
-                  value={manualUrl}
-                  onChange={(e) => setManualUrl(e.target.value)}
-                  placeholder="https://your-project.supabase.co"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-neon-blue/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] text-white/40 uppercase tracking-wider">Anon Key</label>
-                <input 
-                  type="text"
-                  value={manualKey}
-                  onChange={(e) => setManualKey(e.target.value)}
-                  placeholder="your-anon-key"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-neon-blue/50"
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <FuturisticButton 
-                  onClick={handleSaveManualConfig}
-                  className="flex-1 py-2 text-xs"
-                >
-                  Save & Connect
-                </FuturisticButton>
-                {localStorage.getItem('manual_supabase_url') && (
-                  <button 
-                    onClick={handleClearManualConfig}
-                    className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-xs hover:bg-red-500/30 transition-colors"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          )}
         </div>
       </div>
     );
